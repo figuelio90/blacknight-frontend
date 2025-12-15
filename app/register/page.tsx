@@ -54,7 +54,7 @@ export default function RegisterPage() {
       setLoading(true);
 
       const res = await fetch(
-        process.env.NEXT_PUBLIC_API_URL + "/api/register",
+        process.env.NEXT_PUBLIC_API_URL + "/register",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
