@@ -7,7 +7,7 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
     lastName: "",
     documentType: "",
     documentNumber: "",
@@ -99,7 +99,7 @@ export default function RegisterPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <input
-              name="name"
+              name="firstName"
               placeholder="Nombre *"
               className="input"
               onChange={handleChange}
