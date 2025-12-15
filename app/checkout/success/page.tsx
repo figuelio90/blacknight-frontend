@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { CheckCircle, Ticket as TicketIcon, AlertCircle } from "lucide-react";
-import QRCode from "qrcode";
+
 
 interface EventInfo {
   id: number;
@@ -20,7 +20,7 @@ interface Ticket {
 }
 
 interface TicketWithQR extends Ticket {
-  qr: string;
+  qrUrl: string;
 }
 
 export default function SuccessPage() {
@@ -161,12 +161,11 @@ export default function SuccessPage() {
 
             const ticketsFromApi: Ticket[] = data.tickets || [];
 
-            const ticketsWithQR: TicketWithQR[] = await Promise.all(
-              ticketsFromApi.map(async (t: Ticket) => ({
-                ...t,
-                qr: await QRCode.toDataURL(t.code),
-              }))
-            );
+            const ticketsWithQR: TicketWithQR[] = ticketsFromApi.map((t: Ticket) => ({
+              ...t,
+              qrUrl: `${API_URL}/api/tickets/${t.code}/qrcode`,
+            }));
+            
 
             setEventInfo(event);
             setTickets(ticketsWithQR);
@@ -188,13 +187,12 @@ export default function SuccessPage() {
           return;
         }
 
-        const ticketsWithQR: TicketWithQR[] = await Promise.all(
-          tData.map(async (ticket: any) => ({
-            id: ticket.id,
-            code: ticket.code,
-            qr: await QRCode.toDataURL(ticket.code),
-          }))
-        );
+        const ticketsWithQR: TicketWithQR[] = tData.map((ticket: any) => ({
+          id: ticket.id,
+          code: ticket.code,
+          qrUrl: `${API_URL}/api/tickets/${ticket.code}/qrcode`,
+        }))
+        
 
         setTickets(ticketsWithQR);
 
@@ -370,11 +368,10 @@ export default function SuccessPage() {
                   className="bg-neutral-800/80 border border-neutral-700 p-4 rounded-2xl flex flex-col items-center w-[150px] hover:bg-neutral-700/80 transition"
                 >
                   <Image
-                    src={ticket.qr}
+                    src={ticket.qrUrl}
                     alt={`QR ${index + 1}`}
                     width={130}
                     height={130}
-                    className="rounded-lg mb-3"
                     unoptimized
                   />
                   <p className="text-xs text-gray-400">
