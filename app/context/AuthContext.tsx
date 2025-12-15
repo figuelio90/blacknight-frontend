@@ -3,6 +3,8 @@
 import { createContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+
 interface User {
   id: number;
   name: string;
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function fetchUser() {
   try {
-    const res = await fetch("http://localhost:3001/api/me", {
+    const res = await fetch(`${API_BASE_URL}/me`, {
       method: "GET",
       credentials: "include",
     }).catch(() => null); // 👈 evita que Chrome loguee el error
@@ -81,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function logout() {
     try {
-      await fetch("http://localhost:3001/api/logout", {
+      await fetch(`${API_BASE_URL}/logout`, {
         method: "POST",
         credentials: "include",
       });
