@@ -378,7 +378,7 @@ export default function CartPage() {
             </h2>
             <button
               className="text-xs text-gray-400 hover:text-gray-200"
-              onClick={() => cart.clear()}
+              onClick={() => cart.clearCart()}
             >
               Vaciar carrito
             </button>
