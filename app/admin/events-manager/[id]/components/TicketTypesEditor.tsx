@@ -71,7 +71,7 @@ export default function TicketTypesEditor({ event, setEvent }: Props) {
 
   // 🗑️ Eliminar tipo
   function removeType(idx: number) {
-    let updated = ticketTypes.filter((_, i) => i !== idx);
+    let updated = ticketTypes.filter((t, i) => i !== idx);
 
     updated = updated.map((t, i) => ({
       ...t,
