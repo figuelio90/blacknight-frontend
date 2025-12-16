@@ -29,12 +29,13 @@ export default function ProfilePage() {
     }
 
     async function fetchRegs() {
-      const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:3001/api/registrations/mine", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/registrations/mine`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
 
       const data = await res.json();
       setRegistrations(Array.isArray(data) ? data : []);
@@ -65,7 +66,9 @@ export default function ProfilePage() {
             className="rounded-full"
           />
           <div>
-            <h2 className="text-2xl font-bold">{user.name}</h2>
+            <h2 className="text-2xl font-bold">
+              {user.firstName} {user.lastName}
+            </h2>
             <p className="text-blue-400">{user.email}</p>
           </div>
         </div>
