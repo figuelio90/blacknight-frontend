@@ -41,7 +41,7 @@ export default function Header() {
           ) : (
             <>
               <span className="text-gray-300">
-                Hola, {user.name?.split(" ")[0]} 👋
+                Hola, {user.firstName}  
               </span>
 
               <Link href="/profile" className="hover:text-blue-400">

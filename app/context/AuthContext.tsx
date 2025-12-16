@@ -7,10 +7,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 interface User {
   id: number;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   avatar?: string;
-  role?: string;
+  role: "ADMIN" | "ORGANIZER" | "CUSTOMER";
 }
 
 interface AuthContextType {
