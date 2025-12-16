@@ -36,7 +36,7 @@ export default function HomePage() {
   useEffect(() => {
     async function loadEvents() {
       try {
-        const res = await fetch(`${API_URL}/api/events`, {
+        const res = await fetch(`${API_URL}/events`, {
           credentials: "include", // 👈 envía cookies y evita 401
         });
 
