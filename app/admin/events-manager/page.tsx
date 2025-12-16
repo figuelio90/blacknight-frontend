@@ -1,13 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import EventsList from "./EventsList";   // 👈 IMPORTANTE
-import { useState } from "react";
+import EventsList from "./EventsList";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import useAuth from "@/app/hooks/useAuth";
 
 export default function EventsManagerPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
 
+  // 🔐 Protección ADMIN (SIN romper nada)
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user.role !== "ADMIN") {
+      router.push("/");
+    }
+  }, [user, loading, router]);
+
+  // ⏳ Mientras valida sesión
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black text-white p-10">
+        Verificando acceso…
+      </main>
+    );
+  }
+
+  // 🧱 Evita render mientras redirige
+  if (!user || user.role !== "ADMIN") {
+    return null;
+  }
+
+  // ✅ CONTENIDO ORIGINAL (SIN CAMBIOS)
   return (
     <main className="min-h-screen bg-black text-white p-10">
       <div className="flex justify-between items-center mb-10">

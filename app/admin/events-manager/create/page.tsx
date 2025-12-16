@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import CreateEventLayout, {
   CreateEventTab, } from "./components/CreateEventLayout";
@@ -10,7 +10,8 @@ import SectionLocation from "./components/SectionLocation";
 import SectionImages from "./components/SectionImages";
 import SectionSettings from "./components/SectionSettings";
 import PreviewCard from "./components/PreviewCard";
-
+import useAuth from "@/app/hooks/useAuth";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 export interface TicketTypeForm {
   name: string;
   price: string;
@@ -50,8 +51,21 @@ export interface EventFormState {
 
 export default function CreateEventPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const [activeTab, setActiveTab] = useState<CreateEventTab>("info");
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user.role !== "ADMIN") {
+      router.push("/");
+    }
+  }, [user, authLoading, router]);
 
   // ================================
   // EVENT FORM STATE
@@ -230,7 +244,7 @@ export default function CreateEventPage() {
         ticketTypes: mappedTicketTypes,
       };
 
-      const res = await fetch("http://localhost:3001/api/events", {
+      const res = await fetch(`${API_BASE_URL}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -256,6 +270,9 @@ export default function CreateEventPage() {
   // ================================
   // UI
   // ================================
+  if (authLoading) {
+    return <p className="text-white p-10">Verificando acceso...</p>;
+  }
   return (
     <main className="min-h-screen bg-black text-white pt-24 px-6 md:px-10 pb-10">
       <h1 className="text-3xl font-bold mb-6">Crear nuevo evento</h1>

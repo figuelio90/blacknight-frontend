@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+
 interface Props {
   filter: string;
   query: string;
@@ -14,19 +16,28 @@ export default function EventsList({ filter, query }: Props) {
 
   useEffect(() => {
     async function load() {
-      const res = await fetch("http://localhost:3001/api/admin/events", {
-        credentials: "include",
-      });
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/events`, {
+          credentials: "include",
+        });
 
-      if (!res.ok) {
-        setEvents([]);
+        // 🔒 No autorizado / no admin
+        if (res.status === 401 || res.status === 403) {
+          setEvents([]);
+          return;
+        }
+
+        if (!res.ok) {
+          return;
+        }
+
+        const data = await res.json();
+        setEvents(data || []);
+      } catch {
+        // error de red → no romper UI
+      } finally {
         setLoading(false);
-        return;
       }
-
-      const data = await res.json();
-      setEvents(data);
-      setLoading(false);
     }
 
     load();
@@ -97,7 +108,6 @@ export default function EventsList({ filter, query }: Props) {
             <div className="p-4 space-y-2">
               <h3 className="text-xl font-bold text-white">{ev.title}</h3>
 
-              {/* Fecha */}
               <p className="text-gray-400 text-sm">
                 {new Date(ev.startAt).toLocaleString("es-AR", {
                   dateStyle: "short",
@@ -105,19 +115,16 @@ export default function EventsList({ filter, query }: Props) {
                 })}
               </p>
 
-              {/* Ubicación */}
               <p className="text-gray-500 text-sm">
                 {ev.venueCity || "Ciudad no definida"}
               </p>
 
-              {/* Precio mínimo */}
               {minPrice !== null && (
                 <p className="text-purple-400 text-sm font-semibold">
                   Desde ${minPrice}
                 </p>
               )}
 
-              {/* Estado */}
               <span
                 className={`px-2 py-1 rounded text-xs font-medium ${
                   ev.status === "published"
@@ -130,7 +137,6 @@ export default function EventsList({ filter, query }: Props) {
                 {ev.status}
               </span>
 
-              {/* Badge destacado */}
               {ev.featured && (
                 <span className="ml-2 px-2 py-1 text-xs bg-purple-700 text-white rounded">
                   ★ Destacado

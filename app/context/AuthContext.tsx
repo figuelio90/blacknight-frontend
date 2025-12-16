@@ -29,42 +29,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   // ======================================================
-  // 🔥 Obtener usuario desde la cookie (sin spamear error 401)
+  // 🔥 Obtener usuario desde la cookie (sin romper sesión)
   // ======================================================
   async function fetchUser() {
-  try {
-    const res = await fetch(`${API_BASE_URL}/me`, {
-      method: "GET",
-      credentials: "include",
-    }).catch(() => null); // 👈 evita que Chrome loguee el error
+    try {
+      const res = await fetch(`${API_BASE_URL}/me`, {
+        method: "GET",
+        credentials: "include",
+      }).catch(() => null);
 
-    // Si la request falló (res = null)
-    if (!res) {
-      setUser(null);
-      return;
+      // ⛔ Error de red → NO invalidar sesión
+      if (!res) {
+        return;
+      }
+
+      // ⛔ No hay sesión
+      if (res.status === 401) {
+        setUser(null);
+        return;
+      }
+
+      if (!res.ok) {
+        return;
+      }
+
+      const data = await res.json();
+      setUser(data || null);
+
+    } catch {
+      // ⛔ Error inesperado → no romper sesión
+    } finally {
+      setLoading(false);
     }
-
-    // Si no hay sesión → no mostrar 401 en consola
-    if (res.status === 401) {
-      setUser(null);
-      return;
-    }
-
-    if (!res.ok) {
-      setUser(null);
-      return;
-    }
-
-    const data = await res.json();
-    setUser(data || null);
-
-  } catch {
-    setUser(null);
-  } finally {
-    setLoading(false);
   }
-}
-
 
   // Inicializa estado una única vez
   useEffect(() => {
@@ -75,6 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // 🔥 Login → backend setea la cookie → recargar contexto
   // ======================================================
   async function login() {
+    setLoading(true);
     await fetchUser();
     return true;
   }
@@ -91,7 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {}
 
     setUser(null);
-    router.refresh(); // fuerza actualización de UI
+    setLoading(false);
+    router.refresh();
     router.push("/");
   }
 

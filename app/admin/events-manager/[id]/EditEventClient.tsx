@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import useAuth from "@/app/hooks/useAuth";
 import EventTabs from "./components/EventTabs";
 import EventPreview from "./components/EventPreview";
 import EventInfoForm from "./components/EventInfoForm";
@@ -49,9 +50,10 @@ interface EventData {
 
   ticketTypes: TicketType[];
 }
-
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 export default function EditEventClient({ eventId }: { eventId: string }) {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
   const [event, setEvent] = useState<EventData | null>(null);
   const [selectedTab, setSelectedTab] = useState("info");
@@ -59,22 +61,32 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (authLoading) return;
 
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (user.role !== "ADMIN") {
+      router.push("/");
+    }
+  }, [user, authLoading, router]);
   // ======================================================
   // 🔥 Cargar evento
   // ======================================================
   useEffect(() => {
+    if (authLoading || !user || user.role !== "ADMIN") return;
     async function loadEvent() {
       try {
         console.log("EVENT ID:", eventId);
-        const res = await fetch(`http://localhost:3001/api/events/${eventId}`, {
+        const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
           method: "GET",
           credentials: "include",
         });
-        console.log("EVENT ID:", eventId);
         if (res.status === 403) {
           setError("No tenés permiso para ver este evento.");
-          setLoading(false);
           return;
         }
 
@@ -122,7 +134,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     }
 
     loadEvent();
-  }, [eventId]);
+  }, [eventId, authLoading, user]);
 
   // ======================================================
   // 🔥 Guardar evento (PUT)
@@ -175,7 +187,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     };
 
     try {
-      const res = await fetch(`http://localhost:3001/api/events/${eventId}`, {
+      const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -211,7 +223,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     setSaving(true);
 
     try {
-      const res = await fetch(`http://localhost:3001/api/events/${eventId}`, {
+      const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -245,7 +257,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   async function deleteEvent() {
     if (!confirm("¿Seguro que querés eliminar este evento?")) return;
 
-    const res = await fetch(`http://localhost:3001/api/events/${eventId}`, {
+    const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -261,7 +273,9 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   // ======================================================
   // UI
   // ======================================================
-  if (loading) return <p className="text-white p-10">Cargando...</p>;
+  if (authLoading || loading) {
+    return <p className="text-white p-10">Verificando acceso...</p>;
+  }
   if (error) return <p className="text-red-500 p-10">{error}</p>;
   if (!event) return <p className="text-white p-10">Evento no encontrado.</p>;
 
