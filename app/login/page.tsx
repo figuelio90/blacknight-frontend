@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, refetchUser } = useAuth();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +43,7 @@ export default function LoginPage() {
       }
 
       await login();
-      router.refresh();
+      await refetchUser();
       router.push("/");
       
     } catch {

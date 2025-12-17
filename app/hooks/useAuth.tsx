@@ -12,10 +12,13 @@ export default function useAuth() {
       user: null,
       loading: true,
       login: async () => false,
-      logout: () => {},
-      token: null,
+      logout: async() => {},
+      refetchUser: async () => {},
     };
   }
 
-  return context;
+  return {
+    ...context,
+    refetchUser: context.refetchUser,
+  };
 }
