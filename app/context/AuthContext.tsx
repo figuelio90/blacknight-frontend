@@ -73,7 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function login() {
     setLoading(true);
-    await fetchUser();
     return true;
   }
 
