@@ -17,7 +17,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: () => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refetchUser: () => Promise<void>; 
 }
@@ -74,8 +74,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   // 🔥 Login → backend setea la cookie → recargar contexto
   // ======================================================
-  async function login() {
+  async function login(email: string, password: string) {
     setLoading(true);
+
+    const res = await fetch(`${API_BASE_URL}/api/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      setUser(null);
+      setLoading(false);
+      return false;
+    }
+
+    // 🔁 backend setea cookie → ahora traemos el usuario
     await fetchUser();
     return true;
   }
@@ -93,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setUser(null);
     setLoading(false);
-    router.refresh();
     router.push("/");
   }
 

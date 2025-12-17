@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const router = useRouter();
-  const { login, refetchUser } = useAuth();
+  const { login } = useAuth();
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -25,26 +25,14 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(form),
-        }
-      );
+      const ok = await login(form.email, form.password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Credenciales incorrectas");
+      if (!ok) {
+        setError("Credenciales incorrectas");
         return;
       }
 
-      await login();        // 👈 sin parámetros
       router.push("/");
-      
     } catch {
       setError("Error del servidor. Intentá nuevamente.");
     } finally {
@@ -54,7 +42,6 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-black text-white">
-      
       {/* COLUMNA IZQUIERDA – LOGIN */}
       <div className="flex items-center justify-center px-6">
         <form
@@ -90,6 +77,7 @@ export default function LoginPage() {
               required
               placeholder="tu@email.com"
               className="mt-1 w-full p-3 rounded-lg bg-neutral-900 border border-neutral-700 focus:outline-none focus:border-violet-500"
+              value={form.email}
               onChange={(e) =>
                 setForm({ ...form, email: e.target.value })
               }
@@ -105,6 +93,7 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 className="w-full p-3 rounded-lg bg-neutral-900 border border-neutral-700 focus:outline-none focus:border-violet-500 pr-10"
+                value={form.password}
                 onChange={(e) =>
                   setForm({ ...form, password: e.target.value })
                 }
@@ -148,7 +137,7 @@ export default function LoginPage() {
       {/* COLUMNA DERECHA – VISUAL */}
       <div className="hidden lg:flex relative items-center justify-center">
         <Image
-          src="/login-bg.jpg" // 👈 poné una imagen dark / abstracta / evento
+          src="/login-bg.jpg"
           alt="BlackNight"
           fill
           className="object-cover opacity-80"
