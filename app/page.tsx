@@ -28,38 +28,39 @@ export default function HomePage() {
   const [loadingEvents, setLoadingEvents] = useState(true);
 
   // API base correcta
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
+  
   // ======================
   // 🔥 Cargar eventos publicados
   // ======================
   useEffect(() => {
-    async function loadEvents() {
-      try {
-        const res = await fetch(`${API_URL}/api/events`, {
-          credentials: "include", // 👈 envía cookies y evita 401
-        });
+  async function loadEvents() {
+    try {
+      const res = await fetch("/api/events", {
+        credentials: "include",
+      });
 
-        if (!res.ok) {
-          console.error("❌ Error al obtener eventos", res.status);
-          setEvents([]);
-          return;
-        }
-
-        const data = await res.json();
-
-        // El backend devuelve un array ✔
-        setEvents(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("❌ Error cargando eventos:", err);
+      if (!res.ok) {
         setEvents([]);
-      } finally {
-        setLoadingEvents(false);
+        return;
       }
-    }
 
-    loadEvents();
-  }, []);
+      const data = await res.json();
+
+      const publishedEvents = Array.isArray(data)
+        ? data.filter((ev) => ev.status === "published")
+        : [];
+
+      setEvents(publishedEvents);
+    } catch (err) {
+      console.error("❌ Error cargando eventos:", err);
+      setEvents([]);
+    } finally {
+      setLoadingEvents(false);
+    }
+  }
+
+  loadEvents();
+}, []);
 
   // ======================
   // ⭐ Destacados
@@ -90,7 +91,7 @@ export default function HomePage() {
 
   const getMinPrice = (event: Event) =>
     event.ticketTypes?.length
-      ? Math.min(...event.ticketTypes.map((t) => t.price))
+      ? Math.min(...event.ticketTypes.map((t) => t.price)) / 100
       : null;
 
   // ==========================================

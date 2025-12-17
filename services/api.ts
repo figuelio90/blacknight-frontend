@@ -1,11 +1,8 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-
 export async function apiFetch(
   endpoint: string,
   options: RequestInit = {}
 ) {
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const res = await fetch(endpoint, {
     ...options,
     credentials: "include", // 🔑 cookies SIEMPRE
     headers: {

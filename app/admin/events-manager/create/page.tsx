@@ -11,7 +11,6 @@ import SectionImages from "./components/SectionImages";
 import SectionSettings from "./components/SectionSettings";
 import PreviewCard from "./components/PreviewCard";
 import useAuth from "@/app/hooks/useAuth";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 export interface TicketTypeForm {
   name: string;
   price: string;
@@ -233,7 +232,7 @@ export default function CreateEventPage() {
         venueCity: form.venueCity.trim() || undefined,
         venueProvince: form.venueProvince.trim() || undefined,
         venueCountry: form.venueCountry.trim() || undefined,
-        venueMapUrl: form.venueMapUrl.trim() || "",
+        venueMapUrl: form.venueMapUrl.trim() || undefined,
 
          serviceFeePercent: form.serviceFeePercent
           ? Number(form.serviceFeePercent)
@@ -244,7 +243,7 @@ export default function CreateEventPage() {
         ticketTypes: mappedTicketTypes,
       };
 
-      const res = await fetch(`${API_BASE_URL}/events`, {
+      const res = await fetch(`/api/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

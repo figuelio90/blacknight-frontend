@@ -50,7 +50,7 @@ interface EventData {
 
   ticketTypes: TicketType[];
 }
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+
 export default function EditEventClient({ eventId }: { eventId: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -81,7 +81,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     async function loadEvent() {
       try {
         console.log("EVENT ID:", eventId);
-        const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+        const res = await fetch(`/api/events/${eventId}`, {
           method: "GET",
           credentials: "include",
         });
@@ -187,7 +187,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+      const res = await fetch(`/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -223,7 +223,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     setSaving(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+      const res = await fetch(`/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -257,7 +257,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   async function deleteEvent() {
     if (!confirm("¿Seguro que querés eliminar este evento?")) return;
 
-    const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
+    const res = await fetch(`/api/events/${eventId}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -276,7 +276,6 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   if (authLoading || loading) {
     return <p className="text-white p-10">Verificando acceso...</p>;
   }
-  if (error) return <p className="text-red-500 p-10">{error}</p>;
   if (!event) return <p className="text-white p-10">Evento no encontrado.</p>;
 
   return (

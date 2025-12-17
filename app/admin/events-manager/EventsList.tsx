@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
 
 interface Props {
   filter: string;
@@ -17,7 +16,7 @@ export default function EventsList({ filter, query }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/admin/events`, {
+        const res = await fetch(`/api/admin/events`, {
           credentials: "include",
         });
 

@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+
 
 interface User {
   id: number;
@@ -48,6 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // ⛔ No hay sesión
       if (res.status === 401) {
         setUser(null);
+        setLoading(false);
         return;
       }
 

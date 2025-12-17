@@ -33,7 +33,7 @@ export default function CartPage() {
   const searchParams = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
   const { user, loading: authLoading } = useAuth();
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  
 
   const cart = useCartStore();
 
@@ -59,7 +59,7 @@ export default function CartPage() {
         setLoadingEvent(true);
         setError(null);
 
-        const res = await fetch(`${API_URL}/api/events/${eventIdParam}`, {
+        const res = await fetch(`/api/events/${eventIdParam}`, {
           credentials: "include",
         });
 
@@ -102,7 +102,7 @@ export default function CartPage() {
     }
 
     loadEvent();
-  }, [eventIdParam, API_URL]);
+  }, [eventIdParam]);
 
   // =========================
   // Derivados del carrito
@@ -253,7 +253,7 @@ export default function CartPage() {
         })),
       };
 
-      const res = await fetch(`${API_URL}/api/reservations`, {
+      const res = await fetch(`/api/reservations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

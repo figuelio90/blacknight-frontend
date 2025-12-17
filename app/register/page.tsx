@@ -53,18 +53,15 @@ export default function RegisterPage() {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        process.env.NEXT_PUBLIC_API_URL + "/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            ...form,
-            acceptTerms,
-          }),
-        }
-      );
+      const res = await fetch("/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          ...form,
+          acceptTerms,
+        }),
+      });
 
       const data = await res.json();
 
@@ -202,7 +199,11 @@ export default function RegisterPage() {
 
           {/* TÉRMINOS */}
           <label className="flex items-start gap-2 text-sm text-gray-400">
-            <input type="checkbox" checked={acceptTerms} readOnly />
+            <input
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+            />
             <span>
               Acepto los{" "}
               <button

@@ -40,7 +40,7 @@ export default function CheckoutPage() {
   const [expired, setExpired] = useState(false);
   const [paying, setPaying] = useState(false);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 
   // ================================
   // FETCH RESERVATION
@@ -63,7 +63,7 @@ export default function CheckoutPage() {
           return;
         }
 
-        const res = await fetch(`${API_URL}/api/reservations/${token}`, {
+        const res = await fetch(`/api/reservations/${token}`, {
           credentials: "include",
         });
 
@@ -91,7 +91,7 @@ export default function CheckoutPage() {
     }
 
     loadReservation();
-  }, [loading, user, router, API_URL]);
+  }, [loading, user, router]);
 
   // ================================
   // TIMER
@@ -126,13 +126,12 @@ export default function CheckoutPage() {
     setPaying(true);
 
     try {
-      const res = await fetch(`${API_URL}/api/payments/create`, {
+      const res = await fetch(`/api/payments/create`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reservationToken: reservation?.token }),
       });
-
       const data = await res.json();
 
       if (!res.ok) {

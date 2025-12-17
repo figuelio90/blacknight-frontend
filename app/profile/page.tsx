@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
     async function fetchRegs() {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/registrations/mine`,
+        "/api/registrations/mine",
         {
           method: "GET",
           credentials: "include",

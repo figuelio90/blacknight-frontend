@@ -80,10 +80,7 @@ export default function EventDetail() {
       setError(null);
 
       try {
-        const API_URL =
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-        const res = await fetch(`${API_URL}/api/events/${id}`, {
+        const res = await fetch(`/api/events/${id}`, {
           credentials: "include",
         });
 
@@ -124,8 +121,8 @@ export default function EventDetail() {
       }
     }
 
-    if (!authLoading) loadData();
-  }, [id, authLoading]);
+    loadData();
+  }, [id]);
 
   const orderedTickets = useMemo(() => {
     if (!event?.ticketTypes) return [];

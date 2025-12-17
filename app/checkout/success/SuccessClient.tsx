@@ -36,7 +36,7 @@ export default function SuccessPage() {
   const [processing, setProcessing] = useState(true); // esperando aprobación
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  
 
   // =========================
   // 🔥 Polling del pago
@@ -49,7 +49,7 @@ export default function SuccessPage() {
       return;
     }
 
-    let interval: any;
+    let interval: ReturnType<typeof setInterval>;
     let attempts = 0;
 
     async function startPolling() {
@@ -58,7 +58,7 @@ export default function SuccessPage() {
         console.log("⏳ Consultando estado del pago… intento", attempts);
 
         try {
-          const res = await fetch(`${API_URL}/api/payments/status/${paymentId}`, {
+          const res = await fetch(`/api/payments/status/${paymentId}`, {
             credentials: "include",
           });
           const data = await res.json();
@@ -144,7 +144,7 @@ export default function SuccessPage() {
         // 1️⃣ Intentar con confirm-by-token (flujo ideal)
         if (reservationToken) {
           const res = await fetch(
-            `${API_URL}/api/reservations/confirm-by-token/${reservationToken}`,
+            `/api/reservations/confirm-by-token/${reservationToken}`,
             { credentials: "include" }
           );
 
@@ -163,7 +163,7 @@ export default function SuccessPage() {
 
             const ticketsWithQR: TicketWithQR[] = ticketsFromApi.map((t: Ticket) => ({
               ...t,
-              qrUrl: `${API_URL}/api/tickets/${t.code}/qrcode`,
+              qrUrl: `/api/tickets/${t.code}/qrcode`,
             }));
             
 
@@ -176,7 +176,7 @@ export default function SuccessPage() {
         }
 
         // 2️⃣ Fallback: /api/tickets/mine (por si no hay token o falló arriba)
-        const tRes = await fetch(`${API_URL}/api/tickets/mine`, {
+        const tRes = await fetch(`/api/tickets/mine`, {
           credentials: "include",
         });
         const tData = await tRes.json();
@@ -190,7 +190,7 @@ export default function SuccessPage() {
         const ticketsWithQR: TicketWithQR[] = tData.map((ticket: any) => ({
           id: ticket.id,
           code: ticket.code,
-          qrUrl: `${API_URL}/api/tickets/${ticket.code}/qrcode`,
+          qrUrl: `/api/tickets/${ticket.code}/qrcode`,
         }))
         
 
@@ -218,7 +218,7 @@ export default function SuccessPage() {
 
     startPolling();
     return () => clearInterval(interval);
-  }, [paymentId, API_URL, router]);
+  }, [paymentId, router]);
 
   // =========================
   //   ESTADOS INTERMEDIOS
