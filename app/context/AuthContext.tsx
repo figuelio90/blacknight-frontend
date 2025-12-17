@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  
 
   // ======================================================
   // 🔥 Obtener usuario desde la cookie (sin romper sesión)
@@ -36,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_BASE_URL}/api/me`, {
         method: "GET",
-        credentials: "include",
+        credentials: "include", // 🔑 CLAVE
       }).catch(() => null);
 
       // ⛔ Error de red → NO invalidar sesión
@@ -69,11 +70,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUser();
   }, []);
 
+
   // ======================================================
   // 🔥 Login → backend setea la cookie → recargar contexto
   // ======================================================
   async function login() {
     setLoading(true);
+    await fetchUser();
     return true;
   }
 

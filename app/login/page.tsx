@@ -42,8 +42,7 @@ export default function LoginPage() {
         return;
       }
 
-      await login();
-      await refetchUser();
+      await login();        // 👈 sin parámetros
       router.push("/");
       
     } catch {
