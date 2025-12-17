@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function fetchUser() {
     try {
-      const res = await fetch(`${API_BASE_URL}/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/me`, {
         method: "GET",
         credentials: "include",
       }).catch(() => null);

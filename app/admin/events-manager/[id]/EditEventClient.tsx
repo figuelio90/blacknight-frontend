@@ -81,7 +81,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     async function loadEvent() {
       try {
         console.log("EVENT ID:", eventId);
-        const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+        const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
           method: "GET",
           credentials: "include",
         });
@@ -187,7 +187,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     };
 
     try {
-      const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -223,7 +223,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     setSaving(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -257,7 +257,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
   async function deleteEvent() {
     if (!confirm("¿Seguro que querés eliminar este evento?")) return;
 
-    const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+    const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`, {
       method: "DELETE",
       credentials: "include",
     });

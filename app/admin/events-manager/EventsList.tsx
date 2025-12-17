@@ -17,7 +17,7 @@ export default function EventsList({ filter, query }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_BASE_URL}/admin/events`, {
+        const res = await fetch(`${API_BASE_URL}/api/admin/events`, {
           credentials: "include",
         });
 
