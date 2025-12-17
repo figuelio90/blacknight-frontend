@@ -43,7 +43,9 @@ export default function LoginPage() {
       }
 
       await login();
+      router.refresh();
       router.push("/");
+      
     } catch {
       setError("Error del servidor. Intentá nuevamente.");
     } finally {
