@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function fetchUser() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/me`, {
+      const res = await fetch("/api/me", {
         method: "GET",
         credentials: "include", // 🔑 CLAVE
       }).catch(() => null);
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string) {
     setLoading(true);
 
-    const res = await fetch(`${API_BASE_URL}/api/login`, {
+    const res = await fetch(`/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ======================================================
   async function logout() {
     try {
-      await fetch(`${API_BASE_URL}/api/logout`, {
+      await fetch(`/api/logout`, {
         method: "POST",
         credentials: "include",
       });
