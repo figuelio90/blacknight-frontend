@@ -43,7 +43,7 @@ export default function CartPage() {
 
   const [creatingReservation, setCreatingReservation] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
-
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   // =========================
   // Cargar evento por eventId
   // =========================
@@ -253,7 +253,7 @@ export default function CartPage() {
         })),
       };
 
-      const res = await fetch(`/api/reservations`, {
+      const res = await fetch(`${API_URL}/api/reservations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
