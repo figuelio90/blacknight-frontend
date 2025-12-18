@@ -253,7 +253,7 @@ export default function CartPage() {
         })),
       };
 
-      const res = await fetch(`${API_URL}/api/reservations`, {
+      const res = await fetch(`/api/reservations`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
