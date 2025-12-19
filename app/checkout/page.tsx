@@ -121,7 +121,13 @@ export default function CheckoutPage() {
   // PAY
   // ================================
   async function handlePay() {
-    if (paying) return; // ⛔ CLAVE: evita doble ejecución
+    if (paying) return;
+
+    // ⛔ NUEVO: reserva expirada
+    if (expired || timeLeft <= 0) {
+      alert("La reserva expiró. Volvé al evento para intentar nuevamente.");
+      return;
+    }
 
     setPaying(true);
 
@@ -309,7 +315,7 @@ export default function CheckoutPage() {
               }
             `}
           >
-            {paying ? "Procesando..." : "Pagar con Mercado Pago"}
+            {paying ? "Redirigiendo a Mercado Pago..." : "Pagar con Mercado Pago"}
           </button>
 
           <p className="text-center text-gray-500 text-sm mt-3">

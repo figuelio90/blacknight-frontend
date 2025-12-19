@@ -27,7 +27,7 @@ export default function SuccessPage() {
   const params = useSearchParams();
   const router = useRouter();
 
-  const paymentId = params.get("payment_id");
+  const paymentId = params.get("paymentId");
 
   const [tickets, setTickets] = useState<TicketWithQR[]>([]);
   const [eventInfo, setEventInfo] = useState<EventInfo | null>(null);
