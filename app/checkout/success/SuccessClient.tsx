@@ -105,12 +105,11 @@ export default function SuccessPage() {
           }
 
           // pending / in_process → seguimos esperando un rato
+          // pending / in_process → seguimos esperando
           if (["pending", "in_process"].includes(status)) {
             if (attempts >= 20) {
               clearInterval(interval);
-              setError(
-                "El pago sigue en proceso. Podés revisar el estado en tu cuenta de Mercado Pago."
-              );
+              // ⛔ NO mostrar error
               setProcessing(false);
               setLoading(false);
             }
