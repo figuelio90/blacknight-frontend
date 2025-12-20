@@ -63,7 +63,7 @@ export default function CheckoutPage() {
           return;
         }
 
-        const res = await fetch(`/api/reslaservations/${token}`, {
+        const res = await fetch(`/api/reservations/${token}`, {
           credentials: "include",
           cache: "no-store",
         });
