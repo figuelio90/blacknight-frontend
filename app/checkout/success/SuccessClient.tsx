@@ -23,11 +23,20 @@ export default function SuccessPage() {
       setStatus("error");
       return;
     }
-
+    let attempts = 0;
+    const maxAttempts = 30; // 30 * 2s = 60 segundos
     const interval = setInterval(async () => {
+    attempts++;
+
+    if (attempts > maxAttempts) {
+      setStatus("error");
+      clearInterval(interval);
+      return;
+    }
       try {
         const res = await fetch(`/api/payments/status/${paymentId}`, {
           credentials: "include",
+          cache: "no-store",
         });
 
         if (!res.ok) {
@@ -66,7 +75,7 @@ export default function SuccessPage() {
       <main className="min-h-screen flex items-center justify-center bg-black text-white">
         <div className="text-center space-y-4">
           <p className="text-gray-400 text-xl animate-pulse">
-            Pago confirmado. Estamos generando tus entradas…
+            Estamos confirmando tu pago con Mercado Pago…
           </p>
           <p className="text-sm text-gray-600">
             Podés cerrar esta página con tranquilidad.
@@ -90,7 +99,7 @@ export default function SuccessPage() {
         <div className="text-center space-y-6 max-w-md">
           <AlertCircle className="w-20 h-20 text-red-500 mx-auto" />
           <h1 className="text-3xl font-bold text-red-500">
-            No pudimos confirmar la compra
+            No pudimos confirmar la compra , si el pago fue debitado, lo confirmaremos por mail
           </h1>
           <p className="text-gray-400">
             Si el pago fue debitado, se procesará automáticamente o se
