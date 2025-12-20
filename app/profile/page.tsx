@@ -11,7 +11,7 @@ interface Registration {
   event: {
     id: number;
     title: string;
-    city: string;
+    venueCity?: string;  
     startAt: string;
   };
 }
@@ -86,7 +86,7 @@ export default function ProfilePage() {
               >
                 <p className="font-medium">{reg.event.title}</p>
                 <p className="text-gray-400 text-sm">
-                  {reg.event.city} —{" "}
+                  {reg.event.venueCity ?? "Ubicación no definida"} —{" "}
                   {new Date(reg.event.startAt).toLocaleDateString("es-AR")}
                 </p>
                 <p className="text-blue-400 font-semibold mt-1">
