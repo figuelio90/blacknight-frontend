@@ -10,15 +10,21 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (loading) return;
     setLoading(true);
 
-    await fetch("http://localhost:3001/api/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    router.push("/reset-password/sent");
+    try {
+      await fetch("/api/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+    } catch {
+      // ⛔ No mostramos error para no filtrar información
+    } finally {
+      router.push("/reset-password/sent");
+    }
   }
 
   return (
@@ -44,7 +50,7 @@ export default function ResetPasswordPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-violet-600 hover:bg-violet-700 transition rounded-md p-2 font-medium"
+            className="w-full bg-violet-600 hover:bg-violet-700 transition rounded-md p-2 font-medium disabled:opacity-50"
           >
             {loading ? "Sending..." : "Send"}
           </button>

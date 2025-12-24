@@ -17,25 +17,28 @@ export default function ResetPasswordTokenPage() {
     e.preventDefault();
     setError("");
 
+    if (!token) {
+      setError("Token inválido");
+      return;
+    }
+
     if (password !== confirm) {
       setError("Las contraseñas no coinciden");
       return;
     }
 
+    if (loading) return;
     setLoading(true);
 
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/reset-password/${token}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            password,
-            confirmPassword: confirm,
+      const res = await fetch(`/api/reset-password/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          password,
+          confirmPassword: confirm,
         }),
-      }
-    );
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error");
@@ -43,7 +46,7 @@ export default function ResetPasswordTokenPage() {
       setDone(true);
       setTimeout(() => router.push("/login"), 2500);
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || "Error al cambiar contraseña");
     } finally {
       setLoading(false);
     }
@@ -69,7 +72,10 @@ export default function ResetPasswordTokenPage() {
               required
               className="w-full rounded-md p-2 bg-zinc-800 text-white border border-zinc-700"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
             />
 
             <input
@@ -78,7 +84,10 @@ export default function ResetPasswordTokenPage() {
               required
               className="w-full rounded-md p-2 bg-zinc-800 text-white border border-zinc-700"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={(e) => {
+                setConfirm(e.target.value);
+                setError("");
+              }}
             />
 
             {error && (
@@ -88,7 +97,7 @@ export default function ResetPasswordTokenPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-violet-600 hover:bg-violet-700 transition rounded-md p-2 font-medium"
+              className="w-full bg-violet-600 hover:bg-violet-700 transition rounded-md p-2 font-medium disabled:opacity-50"
             >
               {loading ? "Saving..." : "Set new password"}
             </button>

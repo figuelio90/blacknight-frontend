@@ -7,19 +7,23 @@ export default function ResetPasswordSentPage() {
         <div className="text-4xl mb-3">📧</div>
 
         <h1 className="text-xl font-semibold mb-2">
-          Check your email
+          Revisá tu correo
         </h1>
 
-        <p className="text-sm text-zinc-400 mb-6">
-          If an account exists for that email, you’ll receive a password
-          reset link.
+        <p className="text-sm text-zinc-400 mb-4">
+          Si existe una cuenta asociada a ese email, vas a recibir un enlace
+          para restablecer tu contraseña.
+        </p>
+
+        <p className="text-xs text-zinc-500 mb-6">
+          Si no lo ves en unos minutos, revisá la carpeta de spam o correo no deseado.
         </p>
 
         <Link
           href="/login"
-          className="text-violet-400 hover:underline text-sm"
+          className="inline-block px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 transition text-sm font-medium"
         >
-          Return to login
+          Volver al inicio de sesión
         </Link>
       </div>
     </div>

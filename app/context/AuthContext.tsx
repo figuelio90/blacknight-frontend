@@ -17,9 +17,12 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
-  refetchUser: () => Promise<void>; 
+  refetchUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -85,15 +88,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ email, password }),
     });
 
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
       setUser(null);
       setLoading(false);
-      return false;
+      return {
+        ok: false,
+        message: data.error || "Credenciales incorrectas",
+      };
     }
 
-    // 🔁 backend setea cookie → ahora traemos el usuario
     await fetchUser();
-    return true;
+    return { ok: true };
   }
 
   // ======================================================

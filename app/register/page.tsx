@@ -24,6 +24,7 @@ export default function RegisterPage() {
   const [showTerms, setShowTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -70,14 +71,37 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/login");
+      setRegistered(true);
     } catch (err) {
       setError("Error del servidor");
     } finally {
       setLoading(false);
     }
   }
+  if (registered) {
+    return (
+      <main className="min-h-screen bg-black text-white flex items-center justify-center px-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 max-w-md w-full text-center space-y-4">
+          <h1 className="text-3xl font-bold">📧 Verificá tu email</h1>
 
+          <p className="text-gray-300">
+            Te enviamos un correo para confirmar tu cuenta.
+          </p>
+
+          <p className="text-gray-400 text-sm">
+            Debés verificar tu email antes de poder iniciar sesión.
+          </p>
+
+          <button
+            onClick={() => router.push("/login")}
+            className="mt-4 w-full py-3 rounded-xl bg-gradient-to-r from-violet-700 to-purple-500 hover:opacity-90 font-semibold"
+          >
+            Ir al login
+          </button>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className="min-h-screen grid grid-cols-1 md:grid-cols-2 bg-black text-white">
       {/* COLUMNA IZQUIERDA */}

@@ -7,18 +7,8 @@ export default function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    // ✅ Fallback seguro para el render inicial del servidor
-    return {
-      user: null,
-      loading: true,
-      login: async () => false,
-      logout: async() => {},
-      refetchUser: async () => {},
-    };
+    throw new Error("useAuth must be used within AuthProvider");
   }
 
-  return {
-    ...context,
-    refetchUser: context.refetchUser,
-  };
+  return context;
 }

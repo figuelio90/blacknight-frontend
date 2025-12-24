@@ -1,14 +1,13 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
+  async rewrites() {
+    return [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3000',
+        source: "/api/:path*",
+        destination: "http://localhost:3001/api/:path*",
       },
-    ],
-    unoptimized: true, // 👈 evita procesado innecesario durante desarrollo
+    ];
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;

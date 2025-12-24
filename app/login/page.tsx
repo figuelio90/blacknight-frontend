@@ -25,10 +25,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const ok = await login(form.email, form.password);
+      const result = await login(form.email, form.password);
 
-      if (!ok) {
-        setError("Credenciales incorrectas");
+      if (!result.ok) {
+        setError(result.message || "Credenciales incorrectas");
         return;
       }
 
