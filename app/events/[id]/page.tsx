@@ -46,7 +46,14 @@ interface Event {
 
   ticketTypes: TicketType[];
 }
+function getSpotifyEmbedUrl(url: string) {
+  if (!url.includes("open.spotify.com")) return url;
 
+  return url.replace(
+    "https://open.spotify.com/",
+    "https://open.spotify.com/embed/"
+  );
+}
 export default function EventDetail() {
   const { id } = useParams();
   const router = useRouter();
@@ -400,7 +407,7 @@ export default function EventDetail() {
             <div className="rounded-2xl overflow-hidden border border-violet-800/50">
               <iframe
                 style={{ borderRadius: "12px" }}
-                src={event.spotifyPlaylistUrl}
+                src={getSpotifyEmbedUrl(event.spotifyPlaylistUrl)}
                 width="100%"
                 height="380"
                 allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
