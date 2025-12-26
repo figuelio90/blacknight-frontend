@@ -47,12 +47,29 @@ interface Event {
   ticketTypes: TicketType[];
 }
 function getSpotifyEmbedUrl(url: string) {
-  if (!url.includes("open.spotify.com")) return url;
+  try {
+    // Normaliza URLs tipo spotify:playlist:ID
+    if (url.startsWith("spotify:")) {
+      const parts = url.split(":");
+      if (parts.length === 3) {
+        return `https://open.spotify.com/embed/${parts[1]}/${parts[2]}`;
+      }
+    }
 
-  return url.replace(
-    "https://open.spotify.com/",
-    "https://open.spotify.com/embed/"
-  );
+    const u = new URL(url);
+    const parts = u.pathname.split("/").filter(Boolean);
+
+    // Espera algo como /playlist/{id}
+    if (parts.length >= 2) {
+      const type = parts[0]; // playlist | album | track
+      const id = parts[1];
+      return `https://open.spotify.com/embed/${type}/${id}`;
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
 }
 export default function EventDetail() {
   const { id } = useParams();
