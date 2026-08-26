@@ -159,6 +159,8 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error(error);
       alert("Error iniciando el pago.");
+    } finally {
+      setPaying(false);
     }
   }
 

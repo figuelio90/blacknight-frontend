@@ -81,7 +81,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
     async function loadEvent() {
       try {
         console.log("EVENT ID:", eventId);
-        const res = await fetch(`/api/events/${eventId}`, {
+        const res = await fetch(`/api/admin/events/${eventId}`, {
           method: "GET",
           credentials: "include",
         });
