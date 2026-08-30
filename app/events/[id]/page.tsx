@@ -135,6 +135,7 @@ export default function EventDetail() {
 
         setEvent({
           ...data,
+          id: Number(data.id),
           ticketTypes: normalizedTickets,
         });
       } catch (err) {
@@ -148,6 +149,59 @@ export default function EventDetail() {
     loadData();
   }, [id]);
 
+  const cartItemsForEvent = useMemo(() => {
+    if (!event) return [];
+    if (cart.eventId !== null && cart.eventId !== event.id) return [];
+
+    const currentTicketTypeIds = new Set(
+      event.ticketTypes.filter((ticket) => ticket.active).map((ticket) => ticket.id)
+    );
+
+    return cart.items.filter((item) =>
+      currentTicketTypeIds.has(item.ticketTypeId)
+    );
+  }, [cart.eventId, cart.items, event]);
+
+  const prepareCartForEvent = () => {
+    if (!event || cart.items.length === 0 || cart.eventId === event.id) {
+      return true;
+    }
+
+    const eventTicketTypeIds = new Set(
+      event.ticketTypes.map((ticket) => ticket.id)
+    );
+    const activeTicketTypeIds = event.ticketTypes
+      .filter((ticket) => ticket.active)
+      .map((ticket) => ticket.id);
+
+    if (
+      cart.eventId === null &&
+      cart.items.some((item) => eventTicketTypeIds.has(item.ticketTypeId))
+    ) {
+      cart.reconcileCart({ eventId: event.id, activeTicketTypeIds });
+      return true;
+    }
+
+    const shouldReplace = window.confirm(
+      "Tu carrito contiene entradas de otro evento. ¿Querés vaciarlo y continuar con este evento?"
+    );
+
+    if (!shouldReplace) return false;
+
+    cart.clearCart();
+    return true;
+  };
+
+  const setTicketQuantity = (ticketTypeId: number, quantity: number) => {
+    if (!event || !prepareCartForEvent()) return;
+
+    cart.setQuantity({
+      eventId: event.id,
+      ticketTypeId,
+      quantity,
+    });
+  };
+
   const orderedTickets = useMemo(() => {
     if (!event?.ticketTypes) return [];
     return [...event.ticketTypes]
@@ -156,8 +210,8 @@ export default function EventDetail() {
   }, [event?.ticketTypes]);
 
   const totalSelected = useMemo(() => {
-    return cart.items.reduce((acc, item) => acc + item.quantity, 0);
-  }, [cart.items]);
+    return cartItemsForEvent.reduce((acc, item) => acc + item.quantity, 0);
+  }, [cartItemsForEvent]);
 
   const maxPerUser = event?.maxTicketsPerUser ?? Infinity;
 
@@ -325,7 +379,8 @@ export default function EventDetail() {
                 <div className="space-y-4 mt-6">
                   {orderedTickets.map((t) => {
                     const currentQty =
-                      cart.items.find((i) => i.ticketTypeId === t.id)?.quantity || 0;
+                      cartItemsForEvent.find((i) => i.ticketTypeId === t.id)
+                        ?.quantity || 0;
 
                     const reachedGlobalMax = totalSelected >= maxPerUser;
                     const reachedTypeMax = currentQty >= t.stock;
@@ -353,12 +408,10 @@ export default function EventDetail() {
                             <div className="flex items-center gap-4 bg-neutral-800 rounded-lg p-3 w-fit">
                               <button
                                 onClick={() =>
-                                  cart.setQuantity({
-                                    ticketTypeId: t.id,
-                                    name: t.name,
-                                    price: t.price,
-                                    quantity: Math.max(0, currentQty - 1),
-                                  })
+                                  setTicketQuantity(
+                                    t.id,
+                                    Math.max(0, currentQty - 1)
+                                  )
                                 }
                                 disabled={currentQty <= 0}
                                 className="px-3 py-1 bg-neutral-700 rounded disabled:opacity-40"
@@ -374,12 +427,7 @@ export default function EventDetail() {
                                 onClick={() => {
                                   if (reachedGlobalMax) return;
 
-                                  cart.setQuantity({
-                                    ticketTypeId: t.id,
-                                    name: t.name,
-                                    price: t.price,
-                                    quantity: currentQty + 1,
-                                  });
+                                  setTicketQuantity(t.id, currentQty + 1);
                                 }}
                                 disabled={reachedGlobalMax || reachedTypeMax}
                                 className="px-3 py-1 bg-neutral-700 rounded disabled:opacity-40"
@@ -402,6 +450,8 @@ export default function EventDetail() {
                       alert(`Solo podés comprar hasta ${maxPerUser} entradas por usuario`);
                       return;
                     }
+
+                    if (!prepareCartForEvent()) return;
 
                     router.push(`/cart?eventId=${event.id}`);
                   }}

@@ -33,22 +33,23 @@ export default function CartPage() {
   const searchParams = useSearchParams();
   const eventIdParam = searchParams.get("eventId");
   const { user, loading: authLoading } = useAuth();
-  
-
   const cart = useCartStore();
+  const [resolvedEventId] = useState(
+    () => cart.eventId?.toString() ?? eventIdParam
+  );
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
 
   const [creatingReservation, setCreatingReservation] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   // =========================
   // Cargar evento por eventId
   // =========================
   useEffect(() => {
-    if (!eventIdParam) {
+    if (!resolvedEventId) {
       setError("Carrito inválido: falta el ID del evento.");
       setLoadingEvent(false);
       return;
@@ -59,7 +60,7 @@ export default function CartPage() {
         setLoadingEvent(true);
         setError(null);
 
-        const res = await fetch(`/api/events/${eventIdParam}`, {
+        const res = await fetch(`/api/events/${resolvedEventId}`, {
           credentials: "include",
         });
 
@@ -84,7 +85,7 @@ export default function CartPage() {
         );
 
         setEvent({
-          id: data.id,
+          id: Number(data.id),
           title: data.title,
           image: data.image,
           startAt: data.startAt,
@@ -102,7 +103,42 @@ export default function CartPage() {
     }
 
     loadEvent();
-  }, [eventIdParam]);
+  }, [resolvedEventId]);
+
+  // Elimina tipos ausentes/inactivos y asocia de forma segura el carrito legado.
+  useEffect(() => {
+    if (!event) return;
+
+    const currentCart = useCartStore.getState();
+    if (
+      currentCart.eventId !== null &&
+      currentCart.eventId !== event.id
+    ) {
+      setError("El carrito pertenece a otro evento.");
+      return;
+    }
+
+    const activeTicketTypeIds = event.ticketTypes
+      .filter((ticket) => ticket.active)
+      .map((ticket) => ticket.id);
+    const activeIds = new Set(activeTicketTypeIds);
+    const removedItems = currentCart.items.filter(
+      (item) => !activeIds.has(item.ticketTypeId)
+    );
+
+    if (removedItems.length > 0) {
+      setCartNotice(
+        removedItems.length === 1
+          ? "Se quitó una entrada porque ese tipo ya no está disponible."
+          : `Se quitaron ${removedItems.length} tipos de entrada porque ya no están disponibles.`
+      );
+    }
+
+    currentCart.reconcileCart({
+      eventId: event.id,
+      activeTicketTypeIds,
+    });
+  }, [event]);
 
   // =========================
   // Derivados del carrito
@@ -115,17 +151,24 @@ export default function CartPage() {
         const ticket = event.ticketTypes.find(
           (t) => t.id === item.ticketTypeId
         );
-        if (!ticket) return null;
+        if (!ticket || !ticket.active) return null;
         return {
-          ...item,
+          ticketTypeId: item.ticketTypeId,
+          quantity: item.quantity,
+          name: ticket.name,
+          price: ticket.price,
           stock: ticket.stock,
           description: ticket.description,
         };
       })
-      .filter(Boolean) as (typeof cart.items[0] & {
+      .filter(Boolean) as Array<{
+      ticketTypeId: number;
+      quantity: number;
+      name: string;
+      price: number;
       stock: number;
       description?: string;
-    })[];
+    }>;
   }, [cart.items, event]);
 
   const totalQuantity = useMemo(
@@ -152,6 +195,12 @@ export default function CartPage() {
 
 
   const globalMax = event?.maxTicketsPerUser ?? Infinity;
+  const itemsOverStock = useMemo(
+    () => itemsWithDetails.filter((item) => item.quantity > item.stock),
+    [itemsWithDetails]
+  );
+  const exceedsGlobalMax = totalQuantity > globalMax;
+  const hasQuantityIssues = itemsOverStock.length > 0 || exceedsGlobalMax;
 
   // =========================
   // Manejar cambios de cantidad
@@ -178,9 +227,8 @@ export default function CartPage() {
     if (direction === "dec") {
       const newQty = Math.max(0, currentQty - 1);
       cart.setQuantity({
+        eventId: event.id,
         ticketTypeId,
-        name: currentItem.name,
-        price: currentItem.price,
         quantity: newQty,
       });
       return;
@@ -197,9 +245,8 @@ export default function CartPage() {
       const newQty = currentQty + 1;
 
       cart.setQuantity({
+        eventId: event.id,
         ticketTypeId,
-        name: currentItem.name,
-        price: currentItem.price,
         quantity: newQty,
       });
     }
@@ -207,12 +254,11 @@ export default function CartPage() {
 
   const handleRemoveItem = (ticketTypeId: number) => {
     const item = cart.items.find((i) => i.ticketTypeId === ticketTypeId);
-    if (!item) return;
+    if (!item || !event) return;
 
     cart.setQuantity({
+      eventId: event.id,
       ticketTypeId,
-      name: item.name,
-      price: item.price,
       quantity: 0,
     });
   };
@@ -228,16 +274,16 @@ export default function CartPage() {
       return;
     }
 
-    if (!user) {
-      router.push("/login");
+    if (hasQuantityIssues) {
+      const msg =
+        "Corregí las cantidades marcadas antes de continuar: superan el stock disponible o el máximo permitido por usuario.";
+      setReservationError(msg);
+      alert(msg);
       return;
     }
 
-    // Validación global extra por seguridad
-    if (totalQuantity > globalMax) {
-      alert(
-        `Solo podés comprar hasta ${globalMax} entradas en total para este evento.`
-      );
+    if (!user) {
+      router.push("/login");
       return;
     }
 
@@ -384,6 +430,19 @@ export default function CartPage() {
             </button>
           </div>
 
+          {cartNotice && (
+            <p className="rounded-lg border border-amber-700/60 bg-amber-950/40 p-3 text-sm text-amber-200">
+              {cartNotice}
+            </p>
+          )}
+
+          {exceedsGlobalMax && (
+            <p className="rounded-lg border border-red-700/60 bg-red-950/40 p-3 text-sm text-red-300">
+              Seleccionaste {totalQuantity} entradas, pero el máximo permitido
+              para este evento es {globalMax}. Reducí la cantidad para continuar.
+            </p>
+          )}
+
           {itemsWithDetails.length === 0 ? (
             <p className="text-gray-400 text-sm">
               No tenés entradas en tu carrito. Volvé al evento para seleccionar.
@@ -404,13 +463,16 @@ export default function CartPage() {
 
               const maxAllowed = Math.min(maxByStock, maxByGlobal);
               const canIncrease = item.quantity < maxAllowed;
+              const exceedsStock = item.quantity > stock;
 
               return (
                 <motion.div
                   key={item.ticketTypeId}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-4 items-center bg-neutral-900/80 rounded-xl p-4 border border-neutral-800"
+                  className={`flex gap-4 items-center bg-neutral-900/80 rounded-xl p-4 border ${
+                    exceedsStock ? "border-red-700" : "border-neutral-800"
+                  }`}
                 >
                   {/* Imagen */}
                   <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-neutral-800 flex-shrink-0">
@@ -434,6 +496,12 @@ export default function CartPage() {
                       Stock disponible: {stock} — Máx. total:{" "}
                       {globalMax === Infinity ? "sin límite" : globalMax}
                     </p>
+                    {exceedsStock && (
+                      <p className="text-xs font-medium text-red-400">
+                        La cantidad seleccionada supera el stock actual. Reducila
+                        a {stock} o menos para continuar.
+                      </p>
+                    )}
                   </div>
 
                   {/* Contador + subtotal */}
@@ -530,7 +598,11 @@ export default function CartPage() {
 
             <button
               onClick={handleContinue}
-              disabled={itemsWithDetails.length === 0 || creatingReservation}
+              disabled={
+                itemsWithDetails.length === 0 ||
+                creatingReservation ||
+                hasQuantityIssues
+              }
               className="mt-4 w-full bg-violet-700 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-sm font-semibold"
             >
               {creatingReservation
