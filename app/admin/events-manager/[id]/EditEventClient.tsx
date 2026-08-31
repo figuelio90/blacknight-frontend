@@ -10,6 +10,10 @@ import EventInfoForm from "./components/EventInfoForm";
 import EventScheduleForm from "./components/EventScheduleForm";
 import EventLocationForm from "./components/EventLocationForm";
 import TicketTypesEditor from "./components/TicketTypesEditor";
+import {
+  uploadEventCover,
+  validateCoverFile,
+} from "../coverUpload";
 
 interface TicketType {
   id?: number;
@@ -60,7 +64,34 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savePhase, setSavePhase] = useState<
+    "idle" | "uploading" | "saving"
+  >("idle");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState("");
+  const [coverError, setCoverError] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+    };
+  }, [coverPreview]);
+
+  function handleCoverSelect(file: File) {
+    const validationError = validateCoverFile(file);
+
+    if (validationError) {
+      setCoverError(validationError);
+      return;
+    }
+
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setCoverError("");
+    setError("");
+  }
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -144,6 +175,31 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
 
     setSaving(true);
     setError("");
+    setCoverError("");
+
+    let uploadedCover:
+      | Awaited<ReturnType<typeof uploadEventCover>>
+      | undefined;
+
+    if (coverFile) {
+      setSavePhase("uploading");
+
+      try {
+        uploadedCover = await uploadEventCover(coverFile);
+      } catch (uploadError) {
+        const message =
+          uploadError instanceof Error
+            ? uploadError.message
+            : "No se pudo subir la portada seleccionada.";
+        setCoverError(message);
+        setError(message);
+        setSaving(false);
+        setSavePhase("idle");
+        return;
+      }
+    }
+
+    setSavePhase("saving");
 
     const clean = (v: any) =>
       v === "" || v === null || v === undefined ? undefined : v;
@@ -152,7 +208,9 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
       title: clean(event.title),
       startAt: event.startAt, // <-- FIX: NO cortar ni transformar
       capacity: clean(event.capacity),
-      image: clean(event.image),
+      ...(uploadedCover
+        ? { imageObjectKey: uploadedCover.objectKey }
+        : {}),
       featured: clean(event.featured),
       status: clean(event.status),
 
@@ -197,6 +255,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
       if (res.status === 403) {
         setError("No tenés permiso para modificar este evento.");
         setSaving(false);
+        setSavePhase("idle");
         return;
       }
 
@@ -204,16 +263,27 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
         const data = await res.json();
         setError(data.error || "No se pudo guardar los cambios.");
         setSaving(false);
+        setSavePhase("idle");
         return;
+      }
+
+      if (uploadedCover) {
+        setEvent((prev) =>
+          prev ? { ...prev, image: uploadedCover.publicUrl } : prev
+        );
+        setCoverFile(null);
+        setCoverPreview("");
       }
     } catch (err) {
       console.error(err);
       setError("Error interno al guardar.");
       setSaving(false);
+      setSavePhase("idle");
       return;
     }
 
     setSaving(false);
+    setSavePhase("idle");
   }
 
   // ======================================================
@@ -289,7 +359,15 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
 
         <div className="space-y-6 bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
           {selectedTab === "info" && (
-            <EventInfoForm event={event} setEvent={setEvent} />
+            <EventInfoForm
+              event={event}
+              setEvent={setEvent}
+              coverFile={coverFile}
+              coverPreview={coverPreview}
+              coverError={coverError}
+              savePhase={savePhase}
+              onCoverSelect={handleCoverSelect}
+            />
           )}
 
           {selectedTab === "tickets" && (
@@ -340,7 +418,13 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
               className="w-full bg-purple-600 py-3 rounded-lg"
               disabled={saving}
             >
-              {saving ? "Guardando..." : "Guardar cambios"}
+              {savePhase === "uploading"
+                ? "Subiendo imagen..."
+                : savePhase === "saving"
+                  ? "Guardando evento..."
+                  : saving
+                    ? "Guardando..."
+                    : "Guardar cambios"}
             </button>
 
             <button
@@ -352,7 +436,7 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
           </div>
         </div>
 
-        <EventPreview event={event} />
+        <EventPreview event={event} imageOverride={coverPreview} />
       </div>
     </main>
   );

@@ -1,5 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "media.blacknight.click",
+      },
+    ],
+  },
   async rewrites() {
     return [
       {

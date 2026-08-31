@@ -2,9 +2,13 @@
 
 interface EventPreviewProps {
   event: any;
+  imageOverride?: string;
 }
 
-export default function EventPreview({ event }: EventPreviewProps) {
+export default function EventPreview({
+  event,
+  imageOverride,
+}: EventPreviewProps) {
   if (!event) return null;
 
   // Precio mínimo real
@@ -40,10 +44,10 @@ export default function EventPreview({ event }: EventPreviewProps) {
 
       {/* Imagen */}
       <div className="w-full h-56 rounded-xl overflow-hidden border border-neutral-700 mb-4">
-        {event.image ? (
+        {imageOverride || event.image ? (
           <img
-            src={event.image}
-            alt="preview"
+            src={imageOverride || event.image}
+            alt="Vista previa de la portada"
             className="w-full h-full object-cover"
           />
         ) : (

@@ -11,6 +11,10 @@ import SectionImages from "./components/SectionImages";
 import SectionSettings from "./components/SectionSettings";
 import PreviewCard from "./components/PreviewCard";
 import useAuth from "@/app/hooks/useAuth";
+import {
+  uploadEventCover,
+  validateCoverFile,
+} from "../coverUpload";
 export interface TicketTypeForm {
   name: string;
   price: string;
@@ -25,7 +29,6 @@ export interface EventFormState {
   title: string;
   startAt: string;
   capacity: string;
-  image: string;
   featured: boolean;
 
   shortDescription: string;
@@ -73,7 +76,6 @@ export default function CreateEventPage() {
     title: "",
     startAt: "",
     capacity: "",
-    image: "",
     featured: false,
 
     shortDescription: "",
@@ -107,9 +109,21 @@ export default function CreateEventPage() {
     },
   ]);
 
-  const [loading, setLoading] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<
+    "idle" | "uploading" | "saving"
+  >("idle");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [previewImage, setPreviewImage] = useState("");
+  const [coverError, setCoverError] = useState("");
   const [error, setError] = useState("");
+
+  const loading = submitStatus !== "idle";
+
+  useEffect(() => {
+    return () => {
+      if (previewImage) URL.revokeObjectURL(previewImage);
+    };
+  }, [previewImage]);
 
   // ================================
   // HELPERS
@@ -121,9 +135,18 @@ export default function CreateEventPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  function handleImagePreview(url: string) {
-    updateForm("image", url);
-    setPreviewImage(url);
+  function handleCoverSelect(file: File) {
+    const validationError = validateCoverFile(file);
+
+    if (validationError) {
+      setCoverError(validationError);
+      return;
+    }
+
+    setCoverFile(file);
+    setPreviewImage(URL.createObjectURL(file));
+    setCoverError("");
+    setError("");
   }
 
   // ================================
@@ -170,7 +193,7 @@ export default function CreateEventPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setCoverError("");
 
     // Validación de ticket types
     const invalidType = ticketTypes.some(
@@ -186,18 +209,37 @@ export default function CreateEventPage() {
 
     if (invalidType) {
       setError("Revisá los tipos de entrada: nombre, precio y stock válidos.");
-      setLoading(false);
       return;
     }
 
     // Validación de fecha
     if (!form.startAt || isNaN(Date.parse(form.startAt))) {
       setError("La fecha y hora del evento no es válida.");
-      setLoading(false);
       return;
     }
 
     try {
+      let imageObjectKey: string | undefined;
+
+      if (coverFile) {
+        setSubmitStatus("uploading");
+
+        try {
+          const upload = await uploadEventCover(coverFile);
+          imageObjectKey = upload.objectKey;
+        } catch (uploadError) {
+          const message =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "No se pudo subir la portada seleccionada.";
+          setCoverError(message);
+          setError(message);
+          return;
+        }
+      }
+
+      setSubmitStatus("saving");
+
       const mappedTicketTypes = ticketTypes.map((t, index) => ({
         name: t.name.trim(),
         price: Number(t.price),
@@ -213,7 +255,7 @@ export default function CreateEventPage() {
         startAt: form.startAt,
         capacity: Number(form.capacity),
 
-        image: form.image.trim() || undefined,
+        imageObjectKey,
         featured: form.featured,
 
         maxTicketsPerUser: form.maxTicketsPerUser
@@ -253,7 +295,6 @@ export default function CreateEventPage() {
       if (!res.ok) {
         const data = await res.json();
         setError(data.error || "Error al crear el evento");
-        setLoading(false);
         return;
       }
 
@@ -262,7 +303,7 @@ export default function CreateEventPage() {
       console.error(err);
       setError("Error en el servidor");
     } finally {
-      setLoading(false);
+      setSubmitStatus("idle");
     }
   }
 
@@ -282,6 +323,11 @@ export default function CreateEventPage() {
           onTabChange={setActiveTab}
           error={error}
           loading={loading}
+          loadingMessage={
+            submitStatus === "uploading"
+              ? "Subiendo imagen..."
+              : "Guardando evento..."
+          }
           preview={
             <PreviewCard
               form={form}
@@ -311,7 +357,10 @@ export default function CreateEventPage() {
             <SectionImages
               form={form}
               onChange={updateForm}
-              onPreview={handleImagePreview}
+              coverFile={coverFile}
+              coverError={coverError}
+              submitStatus={submitStatus}
+              onCoverSelect={handleCoverSelect}
             />
           )}
 
@@ -328,7 +377,11 @@ export default function CreateEventPage() {
             disabled={loading}
             className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 disabled:opacity-60 px-8 py-3 rounded-lg text-lg font-semibold transition"
           >
-            {loading ? "Creando..." : "Crear evento"}
+            {submitStatus === "uploading"
+              ? "Subiendo imagen..."
+              : submitStatus === "saving"
+                ? "Guardando evento..."
+                : "Crear evento"}
           </button>
         </div>
       </form>

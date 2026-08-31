@@ -132,12 +132,14 @@ export default function HomePage() {
             {featuredEvents.map((ev) => (
               <SwiperSlide key={ev.id}>
                 <Image
-                  src={ev.image || "/placeholder.jpg"}
+                  src={ev.image || "/events/placeholder.jpg"}
                   alt={ev.title}
                   width={1200}
                   height={500}
                   className="rounded-xl object-cover w-full h-[500px]"
-                  onError={(e) => (e.currentTarget.src = "/placeholder.jpg")}
+                  onError={(e) =>
+                    (e.currentTarget.src = "/events/placeholder.jpg")
+                  }
                 />
 
                 <div className="text-center mt-2">
@@ -191,12 +193,14 @@ export default function HomePage() {
               className="bg-neutral-900 rounded-2xl p-4 hover:scale-[1.02] transition"
             >
               <Image
-                src={event.image || "/placeholder.jpg"}
+                src={event.image || "/events/placeholder.jpg"}
                 alt={event.title}
                 width={400}
                 height={200}
                 className="rounded-lg object-cover w-full h-[200px]"
-                onError={(e) => (e.currentTarget.src = "/placeholder.jpg")}
+                onError={(e) =>
+                  (e.currentTarget.src = "/events/placeholder.jpg")
+                }
               />
 
               <p className="text-lg mt-2 font-semibold">{event.title}</p>

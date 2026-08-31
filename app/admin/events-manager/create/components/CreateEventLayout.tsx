@@ -17,6 +17,7 @@ interface Props {
   preview: ReactNode;
   error?: string;
   loading?: boolean;
+  loadingMessage?: string;
 }
 
 export default function CreateEventLayout({
@@ -26,6 +27,7 @@ export default function CreateEventLayout({
   preview,
   error,
   loading,
+  loadingMessage,
 }: Props) {
   return (
     <div className="w-full max-w-[1400px] mx-auto mt-6 mb-12">
@@ -50,7 +52,7 @@ export default function CreateEventLayout({
 
           {loading && (
             <p className="text-xs text-gray-400 mt-2">
-              Guardando cambios...
+              {loadingMessage || "Guardando cambios..."}
             </p>
           )}
         </div>

@@ -277,7 +277,7 @@ export default function EventDetail() {
         <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-black via-black/80 to-transparent z-30" />
 
         <Image
-          src={event.image || "/placeholder.jpg"}
+          src={event.image || "/events/placeholder.jpg"}
           alt={event.title}
           fill
           className="object-cover brightness-75"

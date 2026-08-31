@@ -23,7 +23,7 @@ export default function PreviewCard({
   ticketTypes,
   previewImage,
 }: PreviewCardProps) {
-  const imageUrl = previewImage || form.image;
+  const imageUrl = previewImage;
   const cheapestTicket = [...ticketTypes]
     .filter((t) => t.price && !isNaN(Number(t.price)))
     .sort((a, b) => Number(a.price) - Number(b.price))[0];
