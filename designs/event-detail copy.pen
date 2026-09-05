@@ -1,0 +1,546 @@
+{
+  "version": "2.6",
+  "children": [
+    {
+      "type": "frame",
+      "id": "dv2_main",
+      "name": "01 — Desktop 1440",
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 1300,
+      "fill": "#0A0A0A",
+      "clip": true,
+      "layout": "none",
+      "children": [
+
+        {
+          "type": "frame",
+          "id": "dv2_hdr",
+          "name": "Header",
+          "x": 0, "y": 0,
+          "width": 1440, "height": 60,
+          "fill": "#000000",
+          "layout": "none",
+          "children": [
+            { "type": "text", "id": "dv2_lg_mn", "name": "Logo Moon",
+              "x": 36, "y": 18, "content": "🌙", "fontSize": 22 },
+            { "type": "text", "id": "dv2_lg_bk", "name": "Logo Black",
+              "x": 66, "y": 18, "content": "Black",
+              "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_lg_nt", "name": "Logo Night",
+              "x": 114, "y": 18, "content": "Night",
+              "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#7C3AED" },
+            { "type": "text", "id": "dv2_nv_ev", "name": "Nav Eventos",
+              "x": 427, "y": 20, "content": "Eventos",
+              "fontFamily": "Inter", "fontSize": 14, "fontWeight": "600", "fill": "#A78BFA" },
+            { "type": "text", "id": "dv2_nv_ca", "name": "Nav Categorías",
+              "x": 527, "y": 20, "content": "Categorías",
+              "fontFamily": "Inter", "fontSize": 14, "fill": "#D4D4D8" },
+            { "type": "text", "id": "dv2_nv_cf", "name": "Nav Cómo funciona",
+              "x": 657, "y": 20, "content": "Cómo funciona",
+              "fontFamily": "Inter", "fontSize": 14, "fill": "#D4D4D8" },
+            { "type": "text", "id": "dv2_nv_ay", "name": "Nav Ayuda",
+              "x": 827, "y": 20, "content": "Ayuda",
+              "fontFamily": "Inter", "fontSize": 14, "fill": "#D4D4D8" },
+            { "type": "text", "id": "dv2_nv_is", "name": "Iniciar sesión",
+              "x": 1140, "y": 20, "content": "Iniciar sesión",
+              "fontFamily": "Inter", "fontSize": 14, "fill": "#9CA3AF" },
+            {
+              "type": "frame", "id": "dv2_nv_cc", "name": "Crear cuenta",
+              "x": 1262, "y": 13, "width": 130, "height": 34,
+              "fill": "#7C3AED", "cornerRadius": 8, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_nv_cc_t",
+                  "x": 16, "y": 9, "content": "Crear cuenta",
+                  "fontFamily": "Inter", "fontSize": 13, "fontWeight": "600", "fill": "#FFFFFF" }
+              ]
+            },
+            {
+              "type": "frame", "id": "dv2_nv_cart", "name": "Carrito",
+              "x": 1400, "y": 13, "width": 34, "height": 34,
+              "fill": "#1A1A1A", "cornerRadius": 8, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_nv_cart_ic",
+                  "x": 7, "y": 7, "content": "🛒", "fontSize": 17 },
+                {
+                  "type": "frame", "id": "dv2_cart_bdg", "name": "Badge 2",
+                  "x": 20, "y": -4, "width": 18, "height": 18,
+                  "fill": "#7C3AED", "cornerRadius": 9, "layout": "none",
+                  "children": [
+                    { "type": "text", "id": "dv2_cart_bdg_t",
+                      "x": 5, "y": 3, "content": "2",
+                      "fontFamily": "Inter", "fontSize": 10, "fontWeight": "bold", "fill": "#FFFFFF" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+
+        {
+          "type": "frame", "id": "dv2_hero", "name": "Hero",
+          "x": 0, "y": 60, "width": 1440, "height": 380,
+          "fill": "#1A0028", "clip": true, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_hero_lgrd", "name": "Left Dark Gradient",
+              "x": 0, "y": 0, "width": 680, "height": 380,
+              "fill": "#0A0014", "layout": "none", "children": []
+            },
+            {
+              "type": "frame", "id": "dv2_hero_bgrd", "name": "Bottom Dark Gradient",
+              "x": 0, "y": 234, "width": 1440, "height": 146,
+              "fill": "#060010", "layout": "none", "children": []
+            },
+            {
+              "type": "frame", "id": "dv2_envivo", "name": "EN VIVO Badge",
+              "x": 60, "y": 150, "width": 76, "height": 26,
+              "fill": "#7C3AED", "cornerRadius": 13, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_envivo_t",
+                  "x": 11, "y": 6, "content": "EN VIVO",
+                  "fontFamily": "Inter", "fontSize": 11, "fontWeight": "bold", "fill": "#FFFFFF" }
+              ]
+            },
+            { "type": "text", "id": "dv2_hero_tl", "name": "Event Title",
+              "x": 60, "y": 184, "content": "LOS TEKIS",
+              "fontFamily": "Inter", "fontSize": 76, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_hero_info", "name": "Date Time Venue",
+              "x": 60, "y": 272,
+              "content": "📅  Lunes 4 de enero de 2027    🕐  18:00 hs    📍  Estadio 23 de Agosto – Jujuy",
+              "fontFamily": "Inter", "fontSize": 14, "fill": "#E5E7EB" },
+            {
+              "type": "frame", "id": "dv2_guardar", "name": "Guardar evento",
+              "x": 60, "y": 308, "width": 168, "height": 38,
+              "fill": "#1F1F1F", "cornerRadius": 20, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_guardar_t",
+                  "x": 20, "y": 10, "content": "♡   Guardar evento",
+                  "fontFamily": "Inter", "fontSize": 14, "fill": "#FFFFFF" }
+              ]
+            },
+            {
+              "type": "frame", "id": "dv2_comp", "name": "Compartir",
+              "x": 242, "y": 308, "width": 128, "height": 38,
+              "fill": "#1F1F1F", "cornerRadius": 20, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_comp_t",
+                  "x": 20, "y": 10, "content": "↗   Compartir",
+                  "fontFamily": "Inter", "fontSize": 14, "fill": "#FFFFFF" }
+              ]
+            },
+            {
+              "type": "frame", "id": "dv2_trailer", "name": "Ver trailer (opcional)",
+              "x": 386, "y": 308, "width": 136, "height": 38,
+              "fill": "#0A0014", "cornerRadius": 20, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_trailer_t",
+                  "x": 16, "y": 10, "content": "▶   Ver trailer",
+                  "fontFamily": "Inter", "fontSize": 14, "fill": "#9CA3AF" }
+              ]
+            }
+          ]
+        },
+
+        { "type": "text", "id": "dv2_vc_hd", "name": "Venue Section Heading",
+          "x": 60, "y": 468, "content": "📍  Información del lugar",
+          "fontFamily": "Inter", "fontSize": 13, "fontWeight": "600", "fill": "#A78BFA" },
+
+        {
+          "type": "frame", "id": "dv2_vc_blk", "name": "Venue Info Block",
+          "x": 60, "y": 494, "width": 240, "height": 120,
+          "fill": "#111111", "cornerRadius": 12, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_vc_ico_c", "name": "Venue Icon Circle",
+              "x": 14, "y": 16, "width": 32, "height": 32,
+              "fill": "#1E0A3E", "cornerRadius": 16, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_vc_ico_t",
+                  "x": 7, "y": 7, "content": "📍", "fontSize": 15 }
+              ]
+            },
+            { "type": "text", "id": "dv2_vc_nm",
+              "x": 56, "y": 16, "content": "Estadio 23 de Agosto",
+              "fontFamily": "Inter", "fontSize": 13, "fontWeight": "600", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_vc_ad",
+              "x": 56, "y": 36, "content": "Av. Independencia 1200, Jujuy",
+              "fontFamily": "Inter", "fontSize": 11, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_vc_dt",
+              "x": 14, "y": 64, "content": "📅  Lunes 4 de enero de 2027",
+              "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_vc_tm",
+              "x": 14, "y": 86, "content": "🕐  18:00 hs",
+              "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" }
+          ]
+        },
+
+        {
+          "type": "frame", "id": "dv2_maps", "name": "Ver en Google Maps",
+          "x": 60, "y": 624, "width": 240, "height": 38,
+          "fill": "#1A1A1A", "cornerRadius": 10, "layout": "none",
+          "children": [
+            { "type": "text", "id": "dv2_maps_t",
+              "x": 14, "y": 10, "content": "📍  Ver en Google Maps  →",
+              "fontFamily": "Inter", "fontSize": 13, "fontWeight": "500", "fill": "#A78BFA" }
+          ]
+        },
+
+        { "type": "text", "id": "dv2_sp_hd", "name": "Spotify Heading",
+          "x": 60, "y": 682, "content": "🎵  Escuchá a Los Tekis",
+          "fontFamily": "Inter", "fontSize": 13, "fontWeight": "600", "fill": "#FFFFFF" },
+        { "type": "text", "id": "dv2_sp_sub", "name": "Spotify Subtitle",
+          "x": 60, "y": 703, "content": "Playlist oficial del evento",
+          "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+
+        {
+          "type": "frame", "id": "dv2_sp_card", "name": "Spotify Player Card",
+          "x": 60, "y": 728, "width": 240, "height": 150,
+          "fill": "#120C1E", "cornerRadius": 12, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_sp_art", "name": "Album Art",
+              "x": 12, "y": 14, "width": 58, "height": 58,
+              "fill": "#2D1B4E", "cornerRadius": 8, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_sp_art_t",
+                  "x": 16, "y": 16, "content": "🎶", "fontSize": 22 }
+              ]
+            },
+            { "type": "text", "id": "dv2_sp_tn",
+              "x": 82, "y": 20, "content": "Los Tekis Mix",
+              "fontFamily": "Inter", "fontSize": 12, "fontWeight": "600", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_sp_art2",
+              "x": 82, "y": 40, "content": "Los Tekis",
+              "fontFamily": "Inter", "fontSize": 11, "fill": "#9CA3AF" },
+            { "type": "frame", "id": "dv2_spw1", "x": 12, "y": 94, "width": 4, "height": 30, "fill": "#7C3AED", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw2", "x": 20, "y": 86, "width": 4, "height": 44, "fill": "#7C3AED", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw3", "x": 28, "y": 80, "width": 4, "height": 54, "fill": "#A78BFA", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw4", "x": 36, "y": 88, "width": 4, "height": 38, "fill": "#A78BFA", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw5", "x": 44, "y": 78, "width": 4, "height": 56, "fill": "#F97316", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw6", "x": 52, "y": 92, "width": 4, "height": 26, "fill": "#7C3AED", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw7", "x": 60, "y": 82, "width": 4, "height": 46, "fill": "#A78BFA", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw8", "x": 68, "y": 90, "width": 4, "height": 30, "fill": "#7C3AED", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw9", "x": 76, "y": 84, "width": 4, "height": 42, "fill": "#F97316", "cornerRadius": 2, "layout": "none", "children": [] },
+            { "type": "frame", "id": "dv2_spw10", "x": 84, "y": 88, "width": 4, "height": 34, "fill": "#7C3AED", "cornerRadius": 2, "layout": "none", "children": [] },
+            {
+              "type": "frame", "id": "dv2_sp_play", "name": "Play Button",
+              "x": 190, "y": 84, "width": 44, "height": 44,
+              "fill": "#FFFFFF", "cornerRadius": 22, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_sp_play_t",
+                  "x": 14, "y": 11, "content": "▶", "fontSize": 17, "fill": "#000000" }
+              ]
+            }
+          ]
+        },
+
+        { "type": "text", "id": "dv2_tk_hd", "name": "Tickets Heading",
+          "x": 320, "y": 464, "content": "🎫  Entradas",
+          "fontFamily": "Inter", "fontSize": 22, "fontWeight": "bold", "fill": "#FFFFFF" },
+        { "type": "text", "id": "dv2_tk_help", "name": "Ticket Help",
+          "x": 640, "y": 469, "content": "¿Qué entrada me conviene?  ⓘ",
+          "fontFamily": "Inter", "fontSize": 13, "fill": "#A78BFA" },
+
+        {
+          "type": "frame", "id": "dv2_gen", "name": "Ticket — GENERAL",
+          "x": 320, "y": 506, "width": 640, "height": 80,
+          "fill": "#141414", "cornerRadius": 12, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_gn_ic", "name": "Icon",
+              "x": 14, "y": 17, "width": 46, "height": 46,
+              "fill": "#1F1800", "cornerRadius": 23, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_gn_ic_t", "x": 12, "y": 12, "content": "⭐", "fontSize": 20 }
+              ]
+            },
+            { "type": "text", "id": "dv2_gn_nm", "x": 74, "y": 11,
+              "content": "GENERAL", "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_gn_ds", "x": 74, "y": 33,
+              "content": "Acceso al sector general", "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_gn_av", "x": 74, "y": 54,
+              "content": "400 disponibles", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "500", "fill": "#A78BFA" },
+            { "type": "text", "id": "dv2_gn_pr", "x": 352, "y": 26,
+              "content": "$50.000", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+            {
+              "type": "frame", "id": "dv2_gn_mi", "name": "Minus",
+              "x": 490, "y": 18, "width": 44, "height": 44, "fill": "#1F1F1F", "cornerRadius": 22, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_gn_mi_t", "x": 14, "y": 10, "content": "−", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#9CA3AF" }]
+            },
+            { "type": "text", "id": "dv2_gn_qt", "x": 544, "y": 28, "content": "0", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+            {
+              "type": "frame", "id": "dv2_gn_pl", "name": "Plus",
+              "x": 566, "y": 18, "width": 44, "height": 44, "fill": "#1F1F1F", "cornerRadius": 22, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_gn_pl_t", "x": 14, "y": 10, "content": "+", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#9CA3AF" }]
+            }
+          ]
+        },
+
+        {
+          "type": "frame", "id": "dv2_pre", "name": "Ticket — PREMIUM",
+          "x": 320, "y": 596, "width": 640, "height": 80,
+          "fill": "#141414", "cornerRadius": 12, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_pr_ic", "name": "Icon",
+              "x": 14, "y": 17, "width": 46, "height": 46,
+              "fill": "#001A18", "cornerRadius": 23, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_pr_ic_t", "x": 12, "y": 12, "content": "💎", "fontSize": 20 }
+              ]
+            },
+            { "type": "text", "id": "dv2_pr_nm", "x": 74, "y": 11,
+              "content": "PREMIUM", "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_pr_ds", "x": 74, "y": 33,
+              "content": "Acceso con vista preferencial", "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_pr_av", "x": 74, "y": 54,
+              "content": "150 disponibles", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "500", "fill": "#A78BFA" },
+            { "type": "text", "id": "dv2_pr_pr", "x": 352, "y": 26,
+              "content": "$75.000", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+            {
+              "type": "frame", "id": "dv2_pr_mi", "name": "Minus",
+              "x": 490, "y": 18, "width": 44, "height": 44, "fill": "#1F1F1F", "cornerRadius": 22, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_pr_mi_t", "x": 14, "y": 10, "content": "−", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#9CA3AF" }]
+            },
+            { "type": "text", "id": "dv2_pr_qt", "x": 544, "y": 28, "content": "0", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+            {
+              "type": "frame", "id": "dv2_pr_pl", "name": "Plus",
+              "x": 566, "y": 18, "width": 44, "height": 44, "fill": "#1F1F1F", "cornerRadius": 22, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_pr_pl_t", "x": 14, "y": 10, "content": "+", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#9CA3AF" }]
+            }
+          ]
+        },
+
+        {
+          "type": "frame", "id": "dv2_vip_wrap", "name": "VIP Violet Border",
+          "x": 320, "y": 688, "width": 640, "height": 96,
+          "fill": "#7C3AED", "cornerRadius": 14, "layout": "none",
+          "children": [
+            {
+              "type": "frame", "id": "dv2_vip", "name": "Ticket — VIP (SELECTED qty=2)",
+              "x": 2, "y": 2, "width": 636, "height": 92,
+              "fill": "#1A0E2E", "cornerRadius": 12, "layout": "none",
+              "children": [
+                {
+                  "type": "frame", "id": "dv2_vip_pop", "name": "MÁS POPULAR Badge",
+                  "x": 490, "y": -14, "width": 128, "height": 24,
+                  "fill": "#7C3AED", "cornerRadius": 12, "layout": "none",
+                  "children": [
+                    { "type": "text", "id": "dv2_vip_pop_t", "x": 18, "y": 5,
+                      "content": "MÁS POPULAR", "fontFamily": "Inter", "fontSize": 10, "fontWeight": "bold", "fill": "#FFFFFF" }
+                  ]
+                },
+                {
+                  "type": "frame", "id": "dv2_vp_ic", "name": "Crown Icon",
+                  "x": 14, "y": 22, "width": 46, "height": 46,
+                  "fill": "#2D1B4E", "cornerRadius": 23, "layout": "none",
+                  "children": [
+                    { "type": "text", "id": "dv2_vp_ic_t", "x": 12, "y": 12, "content": "👑", "fontSize": 20 }
+                  ]
+                },
+                { "type": "text", "id": "dv2_vp_nm", "x": 74, "y": 15,
+                  "content": "VIP", "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+                { "type": "text", "id": "dv2_vp_ds", "x": 74, "y": 37,
+                  "content": "Acceso VIP, área exclusiva y consumición", "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" },
+                { "type": "text", "id": "dv2_vp_av", "x": 74, "y": 60,
+                  "content": "¡Quedan 5!", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "600", "fill": "#F59E0B" },
+                { "type": "text", "id": "dv2_vp_pr", "x": 338, "y": 30,
+                  "content": "$120.000", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#A78BFA" },
+                {
+                  "type": "frame", "id": "dv2_vp_mi", "name": "Minus violet",
+                  "x": 488, "y": 22, "width": 44, "height": 44, "fill": "#7C3AED", "cornerRadius": 22, "layout": "none",
+                  "children": [{ "type": "text", "id": "dv2_vp_mi_t", "x": 14, "y": 10, "content": "−", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#FFFFFF" }]
+                },
+                { "type": "text", "id": "dv2_vp_qt", "x": 540, "y": 32, "content": "2", "fontFamily": "Inter", "fontSize": 20, "fontWeight": "bold", "fill": "#FFFFFF" },
+                {
+                  "type": "frame", "id": "dv2_vp_pl", "name": "Plus violet",
+                  "x": 562, "y": 22, "width": 44, "height": 44, "fill": "#7C3AED", "cornerRadius": 22, "layout": "none",
+                  "children": [{ "type": "text", "id": "dv2_vp_pl_t", "x": 14, "y": 10, "content": "+", "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#FFFFFF" }]
+                }
+              ]
+            }
+          ]
+        },
+
+        { "type": "text", "id": "dv2_sec_note", "name": "Security Note",
+          "x": 320, "y": 798, "content": "🔒   Tus entradas están protegidas con compra segura",
+          "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+
+        { "type": "text", "id": "dv2_sobre_hd", "name": "Sobre el evento heading",
+          "x": 320, "y": 846, "content": "Sobre el evento",
+          "fontFamily": "Inter", "fontSize": 16, "fontWeight": "bold", "fill": "#FFFFFF" },
+
+        { "type": "text", "id": "dv2_sobre_tx", "name": "Event description",
+          "x": 320, "y": 874,
+          "content": "Los Tekis llegan a Jujuy para hacer vibrar el Estadio 23 de Agosto\ncon una noche inolvidable. Un show único lleno de energía, folklore y fiesta.",
+          "fontFamily": "Inter", "fontSize": 13, "fill": "#9CA3AF" },
+
+        { "type": "text", "id": "dv2_vmas", "name": "Ver más link",
+          "x": 320, "y": 920, "content": "Ver más ∨",
+          "fontFamily": "Inter", "fontSize": 13, "fontWeight": "600", "fill": "#A78BFA" },
+
+        {
+          "type": "frame", "id": "dv2_gal1", "name": "Gallery Photo 1",
+          "x": 550, "y": 846, "width": 90, "height": 82, "fill": "#1A1A2E", "cornerRadius": 8, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_g1t", "x": 30, "y": 28, "content": "📸", "fontSize": 22 }]
+        },
+        {
+          "type": "frame", "id": "dv2_gal2", "name": "Gallery Photo 2",
+          "x": 648, "y": 846, "width": 90, "height": 82, "fill": "#200030", "cornerRadius": 8, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_g2t", "x": 30, "y": 28, "content": "📸", "fontSize": 22 }]
+        },
+        {
+          "type": "frame", "id": "dv2_gal3", "name": "Gallery Photo 3",
+          "x": 746, "y": 846, "width": 90, "height": 82, "fill": "#1A1A2E", "cornerRadius": 8, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_g3t", "x": 30, "y": 28, "content": "📸", "fontSize": 22 }]
+        },
+        {
+          "type": "frame", "id": "dv2_gal4", "name": "Gallery Photo 4",
+          "x": 844, "y": 846, "width": 90, "height": 82, "fill": "#200030", "cornerRadius": 8, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_g4t", "x": 30, "y": 28, "content": "📸", "fontSize": 22 }]
+        },
+
+        {
+          "type": "frame", "id": "dv2_res", "name": "Resumen de compra",
+          "x": 980, "y": 460, "width": 400, "height": 268,
+          "fill": "#111111", "cornerRadius": 16, "layout": "none",
+          "children": [
+            { "type": "text", "id": "dv2_res_hd", "x": 20, "y": 20,
+              "content": "Resumen de compra", "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_res_ar", "x": 366, "y": 18, "content": "∧", "fontSize": 16, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_res_vp_nm", "x": 20, "y": 56,
+              "content": "VIP", "fontFamily": "Inter", "fontSize": 14, "fontWeight": "600", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_res_vp_dt", "x": 20, "y": 76,
+              "content": "2 × $120.000", "fontFamily": "Inter", "fontSize": 12, "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_res_vp_pr", "x": 300, "y": 62,
+              "content": "$240.000", "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+            {
+              "type": "frame", "id": "dv2_res_div", "name": "Divider",
+              "x": 20, "y": 104, "width": 360, "height": 1, "fill": "#27272A", "layout": "none", "children": []
+            },
+            { "type": "text", "id": "dv2_res_tot_lb", "x": 20, "y": 120,
+              "content": "Total", "fontFamily": "Inter", "fontSize": 16, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_res_tot_pr", "x": 262, "y": 116,
+              "content": "$240.000", "fontFamily": "Inter", "fontSize": 22, "fontWeight": "bold", "fill": "#7C3AED" },
+            {
+              "type": "frame", "id": "dv2_cta", "name": "Continuar al pago",
+              "x": 20, "y": 160, "width": 360, "height": 54,
+              "fill": "#7C3AED", "cornerRadius": 12, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_cta_t", "x": 82, "y": 16,
+                  "content": "🔒   Continuar al pago",
+                  "fontFamily": "Inter", "fontSize": 16, "fontWeight": "bold", "fill": "#FFFFFF" }
+              ]
+            },
+            { "type": "text", "id": "dv2_cta_sec", "x": 110, "y": 226,
+              "content": "🛡  Compra 100% segura",
+              "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" }
+          ]
+        },
+
+        { "type": "text", "id": "dv2_pq_hd", "name": "¿Por qué BN? Heading",
+          "x": 980, "y": 748, "content": "¿Por qué elegir BlackNight?",
+          "fontFamily": "Inter", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" },
+
+        {
+          "type": "frame", "id": "dv2_pq_ic1", "name": "Check 1",
+          "x": 980, "y": 788, "width": 26, "height": 26,
+          "fill": "#1E0E4E", "cornerRadius": 13, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_pq1_t", "x": 6, "y": 5, "content": "✓", "fontSize": 13, "fontWeight": "bold", "fill": "#A78BFA" }]
+        },
+        { "type": "text", "id": "dv2_pq_t1", "x": 1016, "y": 793,
+          "content": "Entradas 100% oficiales", "fontFamily": "Inter", "fontSize": 13, "fill": "#D4D4D8" },
+
+        {
+          "type": "frame", "id": "dv2_pq_ic2", "name": "Check 2",
+          "x": 980, "y": 828, "width": 26, "height": 26,
+          "fill": "#1E0E4E", "cornerRadius": 13, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_pq2_t", "x": 6, "y": 5, "content": "✓", "fontSize": 13, "fontWeight": "bold", "fill": "#A78BFA" }]
+        },
+        { "type": "text", "id": "dv2_pq_t2", "x": 1016, "y": 833,
+          "content": "Pago protegido y seguro", "fontFamily": "Inter", "fontSize": 13, "fill": "#D4D4D8" },
+
+        {
+          "type": "frame", "id": "dv2_pq_ic3", "name": "Check 3",
+          "x": 980, "y": 868, "width": 26, "height": 26,
+          "fill": "#1E0E4E", "cornerRadius": 13, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_pq3_t", "x": 6, "y": 5, "content": "✓", "fontSize": 13, "fontWeight": "bold", "fill": "#A78BFA" }]
+        },
+        { "type": "text", "id": "dv2_pq_t3", "x": 1016, "y": 873,
+          "content": "Soporte antes, durante y después del evento", "fontFamily": "Inter", "fontSize": 13, "fill": "#D4D4D8" },
+
+        {
+          "type": "frame", "id": "dv2_pq_ic4", "name": "Check 4",
+          "x": 980, "y": 908, "width": 26, "height": 26,
+          "fill": "#1E0E4E", "cornerRadius": 13, "layout": "none",
+          "children": [{ "type": "text", "id": "dv2_pq4_t", "x": 6, "y": 5, "content": "✓", "fontSize": 13, "fontWeight": "bold", "fill": "#A78BFA" }]
+        },
+        { "type": "text", "id": "dv2_pq_t4", "x": 1016, "y": 913,
+          "content": "Tus entradas siempre disponibles en tu perfil", "fontFamily": "Inter", "fontSize": 13, "fill": "#D4D4D8" },
+
+        {
+          "type": "frame", "id": "dv2_ft", "name": "Footer",
+          "x": 0, "y": 1148, "width": 1440, "height": 152,
+          "fill": "#060606", "clip": true, "layout": "none",
+          "children": [
+            { "type": "text", "id": "dv2_ft_lg", "x": 60, "y": 30,
+              "content": "🌙 BlackNight",
+              "fontFamily": "Inter", "fontSize": 18, "fontWeight": "bold", "fill": "#FFFFFF" },
+            { "type": "text", "id": "dv2_ft_tag", "x": 60, "y": 58,
+              "content": "Viví los mejores eventos.\nDonde la noche cobra vida.",
+              "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_nav_hd", "x": 340, "y": 30,
+              "content": "NAVEGACIÓN", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "bold", "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_ft_n1", "x": 340, "y": 52, "content": "Eventos", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_n2", "x": 340, "y": 70, "content": "Categorías", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_n3", "x": 340, "y": 88, "content": "Cómo funciona", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_n4", "x": 340, "y": 106, "content": "Ayuda", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_leg_hd", "x": 560, "y": 30,
+              "content": "LEGAL", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "bold", "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_ft_l1", "x": 560, "y": 52, "content": "Términos y condiciones", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_l2", "x": 560, "y": 70, "content": "Política de privacidad", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_l3", "x": 560, "y": 88, "content": "Cookies", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            { "type": "text", "id": "dv2_ft_con_hd", "x": 790, "y": 30,
+              "content": "CONTACTO", "fontFamily": "Inter", "fontSize": 11, "fontWeight": "bold", "fill": "#9CA3AF" },
+            { "type": "text", "id": "dv2_ft_c1", "x": 790, "y": 52,
+              "content": "hola@blacknight.com", "fontFamily": "Inter", "fontSize": 12, "fill": "#6B7280" },
+            {
+              "type": "frame", "id": "dv2_ft_ig", "name": "IG",
+              "x": 790, "y": 78, "width": 30, "height": 30, "fill": "#1F1F1F", "cornerRadius": 15, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_ft_ig_t", "x": 6, "y": 6, "content": "📷", "fontSize": 15 }]
+            },
+            {
+              "type": "frame", "id": "dv2_ft_fb", "name": "FB",
+              "x": 828, "y": 78, "width": 30, "height": 30, "fill": "#1F1F1F", "cornerRadius": 15, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_ft_fb_t", "x": 9, "y": 6, "content": "f", "fontSize": 15, "fontWeight": "bold", "fill": "#FFFFFF" }]
+            },
+            {
+              "type": "frame", "id": "dv2_ft_tk", "name": "TikTok",
+              "x": 866, "y": 78, "width": 30, "height": 30, "fill": "#1F1F1F", "cornerRadius": 15, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_ft_tk_t", "x": 8, "y": 6, "content": "♪", "fontSize": 15, "fill": "#FFFFFF" }]
+            },
+            {
+              "type": "frame", "id": "dv2_ft_wa", "name": "WhatsApp",
+              "x": 904, "y": 78, "width": 30, "height": 30, "fill": "#1F1F1F", "cornerRadius": 15, "layout": "none",
+              "children": [{ "type": "text", "id": "dv2_ft_wa_t", "x": 6, "y": 6, "content": "💬", "fontSize": 15 }]
+            },
+            { "type": "text", "id": "dv2_ft_copy", "x": 1040, "y": 70,
+              "content": "© 2025 BlackNight. Todos los derechos reservados.",
+              "fontFamily": "Inter", "fontSize": 11, "fill": "#4B5563" },
+            {
+              "type": "frame", "id": "dv2_ft_planet", "name": "Planet Graphic",
+              "x": 1316, "y": 18, "width": 110, "height": 110,
+              "fill": "#2D1B69", "cornerRadius": 55, "layout": "none",
+              "children": [
+                { "type": "text", "id": "dv2_ft_planet_t", "x": 32, "y": 32, "content": "🌙", "fontSize": 40 }
+              ]
+            }
+          ]
+        }
+
+      ]
+    }
+  ]
+}
