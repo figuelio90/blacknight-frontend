@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { useCartStore } from "@/app/store/cartStore";
 import useAuth from "@/app/hooks/useAuth";
 import { FaTrash } from "react-icons/fa";
+import { useShoppingSession } from "@/app/hooks/useShoppingSession";
+import SessionExpiredModal from "@/app/components/SessionExpiredModal";
 
 interface TicketType {
   id: number;
@@ -38,6 +40,8 @@ export default function CartPage() {
     () => cart.eventId?.toString() ?? eventIdParam
   );
 
+  const numericEventId = resolvedEventId ? Number(resolvedEventId) : null;
+
   const [event, setEvent] = useState<Event | null>(null);
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +49,25 @@ export default function CartPage() {
 
   const [creatingReservation, setCreatingReservation] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
+  const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
+
+  // ─── ShoppingSession (BLA-87) ───────────────────────────────────────────
+  const onSessionExpired = useCallback(() => {
+    setSessionExpiredOpen(true);
+  }, []);
+
+  const {
+    status: sessionStatus,
+    session,
+    secondsRemaining,
+    commitToReservation,
+  } = useShoppingSession({
+    eventId: numericEventId,
+    // Until function selection is exposed in the UI, functionId mirrors eventId.
+    functionId: numericEventId,
+    authenticated: !authLoading && !!user,
+    onExpired: onSessionExpired,
+  });
 
   // =========================
   // Cargar evento por eventId
@@ -265,7 +288,7 @@ export default function CartPage() {
   };
 
   // =========================
-  // Continuar a checkout (CREAR RESERVA)
+  // Continuar a checkout (BLA-87: ShoppingSession → Reservation)
   // =========================
   const handleContinue = async () => {
     if (!event) return;
@@ -284,7 +307,6 @@ export default function CartPage() {
     }
 
     if (!user) {
-      // Preservar el destino del carrito para volver después del login
       const callbackUrl = resolvedEventId
         ? `/cart?eventId=${resolvedEventId}`
         : "/cart";
@@ -292,6 +314,32 @@ export default function CartPage() {
       return;
     }
 
+    // ShoppingSession path (BLA-87)
+    if (session) {
+      try {
+        setReservationError(null);
+        setCreatingReservation(true);
+
+        const token = await commitToReservation();
+
+        // Persist token for checkout recovery on F5 / tab close
+        localStorage.setItem("reservationToken", token);
+        cart.clearCart();
+        router.push(`/checkout?token=${token}`);
+        return;
+      } catch (err) {
+        console.error("❌ Error al confirmar sesión de compra:", err);
+        const msg =
+          err instanceof Error ? err.message : "No se pudo crear la reserva.";
+        setReservationError(msg);
+        alert(msg);
+        return;
+      } finally {
+        setCreatingReservation(false);
+      }
+    }
+
+    // Fallback: legacy direct reservation (no active ShoppingSession)
     try {
       setReservationError(null);
       setCreatingReservation(true);
@@ -304,7 +352,7 @@ export default function CartPage() {
         })),
       };
 
-      const res = await fetch(`/api/reservations`, {
+      const res = await fetch("/api/reservations", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -314,7 +362,6 @@ export default function CartPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        console.error("❌ Error creando reserva:", data);
         const msg = data.error || "No se pudo crear la reserva.";
         setReservationError(msg);
         alert(msg);
@@ -323,24 +370,19 @@ export default function CartPage() {
 
       const token = data.reservation?.token;
       if (!token) {
-        console.error("❌ Respuesta sin token de reserva:", data);
-        const msg =
-          "Error en el servidor: no se recibió token de reserva.";
+        const msg = "Error en el servidor: no se recibió token de reserva.";
         setReservationError(msg);
         alert(msg);
         return;
       }
 
-      // Guardar token para reintentos / F5
       localStorage.setItem("reservationToken", token);
-
-      // Redirigir a checkout
+      cart.clearCart();
       router.push(`/checkout?token=${token}`);
     } catch (err) {
       console.error("❌ Error inesperado creando reserva:", err);
-      const msg = "Error inesperado al crear la reserva.";
-      setReservationError(msg);
-      alert(msg);
+      setReservationError("Error inesperado al crear la reserva.");
+      alert("Error inesperado al crear la reserva.");
     } finally {
       setCreatingReservation(false);
     }
@@ -576,6 +618,32 @@ export default function CartPage() {
               Resumen de la compra
             </h2>
 
+            {/* Session status */}
+            {user && sessionStatus === "loading" && (
+              <p className="text-xs text-gray-500 animate-pulse">
+                Preparando tu sesión de compra...
+              </p>
+            )}
+            {user && sessionStatus === "active" && secondsRemaining !== null && (
+              <p className={`text-xs font-medium ${
+                secondsRemaining < 120 ? "text-amber-400" : "text-gray-500"
+              }`}>
+                ⏱ Sesión activa —{" "}
+                {Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2, "0")} restante
+              </p>
+            )}
+            {user && sessionStatus === "syncing" && (
+              <p className="text-xs text-violet-400 animate-pulse">
+                Guardando selección...
+              </p>
+            )}
+            {user && sessionStatus === "error" && (
+              <p className="text-xs text-red-400">
+                No se pudo conectar con la sesión de compra. Podés continuar de
+                todas formas.
+              </p>
+            )}
+
             {reservationError && (
               <p className="text-xs text-red-400 mb-2">
                 {reservationError}
@@ -617,6 +685,21 @@ export default function CartPage() {
           </div>
         </motion.div>
       </section>
+
+      {/* Session expired overlay (BLA-87) */}
+      <SessionExpiredModal
+        open={sessionExpiredOpen}
+        eventId={numericEventId}
+        onGoToEvent={() => {
+          setSessionExpiredOpen(false);
+          if (numericEventId) router.push(`/events/${numericEventId}`);
+          else router.push("/");
+        }}
+        onGoHome={() => {
+          setSessionExpiredOpen(false);
+          router.push("/");
+        }}
+      />
     </main>
   );
 }
