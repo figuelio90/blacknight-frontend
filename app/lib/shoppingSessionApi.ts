@@ -5,68 +5,123 @@
  * (next.config.js: /api/* -> http://localhost:3001/api/*) and attach
  * credentials (session cookie) automatically.
  *
- * Responses that include a 410 status indicate that the shopping session has
- * expired (idle TTL or absolute TTL hit). Callers should catch and handle
- * the ShoppingSessionExpiredError thrown in that case.
+ * ─── Response shape (verified against src/routes/shoppingSession.ts) ──────────
+ *
+ *  POST   /api/shopping-sessions
+ *  GET    /api/shopping-sessions/active?functionId=<id>
+ *  GET    /api/shopping-sessions/:id
+ *  POST   /api/shopping-sessions/:id/heartbeat
+ *    → 200/201  { shoppingSession: ShoppingSession, heartbeatSeconds: number }
+ *    → 410      { error: "SHOPPING_SESSION_EXPIRED" | "SHOPPING_SESSION_NOT_ACTIVE" | ... }
+ *
+ *  PUT    /api/shopping-sessions/:id/items
+ *    → 200      { shoppingSession: ShoppingSession }         ← heartbeatSeconds omitted
+ *    → 409      { error: "SHOPPING_SESSION_VERSION_CONFLICT" }
+ *    → 410      { error: "SHOPPING_SESSION_EXPIRED" }
+ *
+ *  POST   /api/reservations  (with { shoppingSessionId, version })
+ *    → 201      { reservation: { token: string, ... } }
+ *    → 409      { error: "SHOPPING_SESSION_VERSION_CONFLICT" | "SHOPPING_SESSION_NOT_ACTIVE" }
+ *    → 410      { error: "SHOPPING_SESSION_EXPIRED" }
+ *
+ * ─── Type notes ────────────────────────────────────────────────────────────────
+ *
+ *  • shoppingSession.id   → number (int) — validated by z.coerce.number().int()
+ *  • functionId           → number (int) — a real EventFunction PK, obtained from
+ *                           GET /api/events/:id response field `functionId`
+ *  • recoveryToken        → string (UUID) — optional, passed to POST /shopping-sessions
+ *                           when a RecoverySession token is available in localStorage
  */
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface ShoppingSessionItem {
+export interface ShoppingSessionItemData {
   ticketTypeId: number;
   quantity: number;
 }
 
+/** Raw Prisma-shaped item as returned inside shoppingSession.items */
+export interface ShoppingSessionItemFull extends ShoppingSessionItemData {
+  id: number;
+  shoppingSessionId: number;
+  ticketType: {
+    id: number;
+    name: string;
+    price: number;
+    stock: number;
+    active: boolean;
+    color: string | null;
+    description: string | null;
+  };
+}
+
+/** Shape of ShoppingSession as returned by the backend (shoppingSessionInclude). */
 export interface ShoppingSession {
-  id: string;
+  /** Integer PK — NOT a UUID. */
+  id: number;
+  userId: number;
   eventId: number;
   functionId: number;
-  items: ShoppingSessionItem[];
-  /**
-   * Optimistic-locking version. Must be sent back on every mutating request
-   * to detect mid-flight conflicts. The backend increments this on each
-   * successful write.
-   */
+  status: "active" | "expired" | "converted";
+  /** Increments on every successful PUT /items call. Used for optimistic locking. */
   version: number;
-  /** ISO-8601 timestamp — absolute expiry (15 min after creation, never extended). */
-  absoluteExpiresAt: string;
-  /** ISO-8601 timestamp — idle expiry (resets on each heartbeat; 5 min window). */
+  lastActivityAt: string;
+  /** ISO-8601 — resets on each heartbeat (within absoluteExpiresAt). */
   idleExpiresAt: string;
-  /** Seconds between required heartbeats, as configured by the backend. */
-  heartbeatSeconds: number;
-  /** If present, the session has been promoted to a reservation. */
-  reservationToken?: string;
+  /** ISO-8601 — never extended after creation (15 min max). */
+  absoluteExpiresAt: string;
+  createdAt: string;
+  items: ShoppingSessionItemFull[];
+  recoverySession: {
+    id: number;
+    reason: string;
+    sourcePaymentId: number;
+  } | null;
+  reservation: {
+    id: number;
+    token: string;
+    status: string;
+    expiresAt: string;
+  } | null;
 }
 
-export interface CreateSessionPayload {
+export interface StartSessionPayload {
   eventId: number;
   /**
-   * The backend ties each ShoppingSession to a specific EventFunction.
-   * Until the frontend exposes function selection, we pass the eventId as a
-   * proxy. The backend will resolve the default function for the event.
-   * Update this field once multi-function support lands in the UI.
+   * Real EventFunction PK — obtained from GET /api/events/:id response field
+   * `functionId`. NEVER use eventId here; the backend validates that the
+   * function exists and belongs to the event.
    */
   functionId: number;
+  /**
+   * UUID string — only provided when a RecoverySession token is available
+   * (stored in localStorage under key "recoveryToken" after a payment flow).
+   * Passing it extends the ShoppingSession TTL to match the RecoverySession
+   * expiry and marks the RecoverySession as consumed.
+   */
+  recoveryToken?: string;
 }
 
-export interface UpdateSessionItemsPayload {
-  items: ShoppingSessionItem[];
-  /** Current version of the session — required for optimistic locking. */
+export interface UpdateItemsPayload {
+  items: ShoppingSessionItemData[];
+  /** Must match the current shoppingSession.version or the backend returns 409. */
   version: number;
 }
 
-export interface CommitToReservationPayload {
-  /** The ShoppingSession id to atomically transition. */
-  shoppingSessionId: string;
+export interface CommitPayload {
+  /** Integer PK of the ShoppingSession to atomically convert to a Reservation. */
+  shoppingSessionId: number;
+  /** Must match the current shoppingSession.version to prevent double-commits. */
   version: number;
 }
 
 // ─── Custom Errors ───────────────────────────────────────────────────────────
 
 /**
- * Thrown when the backend returns 410 SHOPPING_SESSION_EXPIRED.
- * The UI should display an expiration modal and guide the user back to the
- * event page to start a fresh session.
+ * Thrown when the backend returns HTTP 410 with any of:
+ *   SHOPPING_SESSION_EXPIRED, SHOPPING_SESSION_NOT_ACTIVE,
+ *   RECOVERY_NOT_ACTIVE, RECOVERY_EXPIRED
+ * The UI must show the SessionExpiredModal and redirect to the event page.
  */
 export class ShoppingSessionExpiredError extends Error {
   readonly code = "SHOPPING_SESSION_EXPIRED";
@@ -77,114 +132,111 @@ export class ShoppingSessionExpiredError extends Error {
 }
 
 /**
- * Thrown when the backend returns 409 (optimistic lock conflict).
- * The caller should re-fetch the active session and retry the operation.
+ * Thrown when the backend returns HTTP 409.
+ * Includes SHOPPING_SESSION_VERSION_CONFLICT and SHOPPING_SESSION_NOT_ACTIVE
+ * from the reservations route (both map to 409 there).
+ * The caller should re-fetch the active session and retry with the new version.
  */
 export class ShoppingSessionConflictError extends Error {
-  readonly code = "SHOPPING_SESSION_CONFLICT";
-  constructor(message = "Conflicto de versión en la sesión de compra.") {
-    super(message);
+  readonly code: string;
+  constructor(code = "SHOPPING_SESSION_VERSION_CONFLICT") {
+    super(code);
     this.name = "ShoppingSessionConflictError";
+    this.code = code;
   }
 }
 
-// ─── Internal helper ─────────────────────────────────────────────────────────
+// ─── Internal helpers ────────────────────────────────────────────────────────
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (res.status === 410) {
-    throw new ShoppingSessionExpiredError();
-  }
+interface BackendSessionEnvelope {
+  shoppingSession: ShoppingSession;
+  heartbeatSeconds?: number;
+}
+
+async function parseSessionEnvelope(res: Response): Promise<BackendSessionEnvelope> {
+  if (res.status === 410) throw new ShoppingSessionExpiredError();
   if (res.status === 409) {
-    throw new ShoppingSessionConflictError();
+    const body = await res.json().catch(() => ({})) as { error?: string };
+    throw new ShoppingSessionConflictError(body?.error);
   }
-
-  const body = await res.json().catch(() => ({}));
-
+  const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(
       (body as { error?: string })?.error ??
-        `Shopping session request failed (${res.status})`
+        `ShoppingSession request failed (${res.status})`
     );
   }
-
-  return body as T;
+  return body as BackendSessionEnvelope;
 }
 
 // ─── API Functions ────────────────────────────────────────────────────────────
 
 /**
- * Creates a new ShoppingSession for the given event + function combination.
  * POST /api/shopping-sessions
+ * Returns 201 on creation or 200 when an existing active session is returned.
+ * Optionally accepts a recoveryToken UUID to link to a RecoverySession.
  */
-export async function createShoppingSession(
-  payload: CreateSessionPayload
-): Promise<ShoppingSession> {
+export async function createOrResumeSession(
+  payload: StartSessionPayload
+): Promise<{ session: ShoppingSession; heartbeatSeconds: number }> {
   const res = await fetch("/api/shopping-sessions", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-
-  return handleResponse<ShoppingSession>(res);
+  const envelope = await parseSessionEnvelope(res);
+  return {
+    session: envelope.shoppingSession,
+    heartbeatSeconds: envelope.heartbeatSeconds ?? 30,
+  };
 }
 
 /**
- * Fetches the currently active ShoppingSession for this user + functionId.
- * Returns null when no active session exists (404).
  * GET /api/shopping-sessions/active?functionId=<id>
+ * Returns null when no active session exists (404) or when it has expired (410).
  */
-export async function getActiveShoppingSession(
+export async function getActiveSession(
   functionId: number
-): Promise<ShoppingSession | null> {
+): Promise<{ session: ShoppingSession; heartbeatSeconds: number } | null> {
   const res = await fetch(
     `/api/shopping-sessions/active?functionId=${functionId}`,
-    {
-      credentials: "include",
-      cache: "no-store",
-    }
+    { credentials: "include", cache: "no-store" }
   );
-
   if (res.status === 404) return null;
-  if (res.status === 410) {
-    // Session existed but expired — treat as no active session.
-    return null;
-  }
-
-  return handleResponse<ShoppingSession>(res);
+  if (res.status === 410) return null;
+  const envelope = await parseSessionEnvelope(res);
+  return {
+    session: envelope.shoppingSession,
+    heartbeatSeconds: envelope.heartbeatSeconds ?? 30,
+  };
 }
 
 /**
- * Sends a heartbeat to keep the session alive past the idle TTL.
- * The backend resets `idleExpiresAt` but does NOT extend `absoluteExpiresAt`.
  * POST /api/shopping-sessions/:id/heartbeat
+ * Resets idleExpiresAt. Throws ShoppingSessionExpiredError on 410.
+ * Returns the updated session.
  */
-export async function sendHeartbeat(sessionId: string): Promise<void> {
+export async function sendHeartbeat(
+  sessionId: number
+): Promise<ShoppingSession> {
   const res = await fetch(`/api/shopping-sessions/${sessionId}/heartbeat`, {
     method: "POST",
     credentials: "include",
   });
-
-  if (res.status === 410) {
-    throw new ShoppingSessionExpiredError();
-  }
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(
-      (body as { error?: string })?.error ?? `Heartbeat failed (${res.status})`
-    );
-  }
+  const envelope = await parseSessionEnvelope(res);
+  return envelope.shoppingSession;
 }
 
 /**
- * Persists the current item selection to the backend session.
- * Uses optimistic locking via the `version` field.
  * PUT /api/shopping-sessions/:id/items
+ * Persists the current item selection. Requires the current version for
+ * optimistic locking. Returns { shoppingSession } only (no heartbeatSeconds).
+ * Throws ShoppingSessionConflictError on 409 and ShoppingSessionExpiredError on 410.
  */
 export async function updateSessionItems(
-  sessionId: string,
-  payload: UpdateSessionItemsPayload
+  sessionId: number,
+  payload: UpdateItemsPayload
 ): Promise<ShoppingSession> {
   const res = await fetch(`/api/shopping-sessions/${sessionId}/items`, {
     method: "PUT",
@@ -192,17 +244,20 @@ export async function updateSessionItems(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-
-  return handleResponse<ShoppingSession>(res);
+  const envelope = await parseSessionEnvelope(res);
+  return envelope.shoppingSession;
 }
 
 /**
- * Atomically transitions the ShoppingSession to a Reservation.
- * POST /api/reservations (with shoppingSessionId in body)
+ * POST /api/reservations  { shoppingSessionId, version }
+ * Atomically converts the ShoppingSession to a Reservation.
+ * Items are taken from the backend session (not re-sent from the frontend).
+ * Throws ShoppingSessionExpiredError on 410, ShoppingSessionConflictError on 409.
+ * Returns the reservation token on 201.
  */
-export async function commitSessionToReservation(
-  payload: CommitToReservationPayload
-): Promise<{ reservation: { token: string } }> {
+export async function commitToReservation(
+  payload: CommitPayload
+): Promise<string> {
   const res = await fetch("/api/reservations", {
     method: "POST",
     credentials: "include",
@@ -210,5 +265,47 @@ export async function commitSessionToReservation(
     body: JSON.stringify(payload),
   });
 
-  return handleResponse<{ reservation: { token: string } }>(res);
+  if (res.status === 410) throw new ShoppingSessionExpiredError();
+  if (res.status === 409) {
+    const body = await res.json().catch(() => ({})) as { error?: string };
+    throw new ShoppingSessionConflictError(body?.error);
+  }
+
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error(
+      (body as { error?: string })?.error ?? `Reservation commit failed (${res.status})`
+    );
+  }
+
+  const token = (body as { reservation?: { token?: string } })?.reservation?.token;
+  if (!token) throw new Error("El backend no devolvió un token de reserva.");
+  return token;
+}
+
+/**
+ * GET /api/recovery-sessions/:token
+ * Fetches a RecoverySession by its UUID token.
+ * Used to check if the user has a pending recovery after a failed payment.
+ * Returns null if the token is invalid, not found, or not active.
+ */
+export interface RecoverySession {
+  token: string;
+  status: "active" | "expired" | "consumed";
+  reason: string;
+  eventId: number;
+  functionId: number;
+  expiresAt: string;
+  consumedAt: string | null;
+}
+
+export async function getRecoverySession(
+  token: string
+): Promise<RecoverySession | null> {
+  const res = await fetch(`/api/recovery-sessions/${token}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<RecoverySession>;
 }

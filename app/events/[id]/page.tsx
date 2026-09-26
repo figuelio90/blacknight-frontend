@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import useAuth from "@/app/hooks/useAuth";
@@ -17,6 +18,9 @@ import {
   MdShare,
 } from "react-icons/md";
 import { useCartStore } from "@/app/store/cartStore";
+import { useShoppingSession } from "@/app/hooks/useShoppingSession";
+import SessionExpiredModal from "@/app/components/SessionExpiredModal";
+
 
 interface TicketType {
   id: number;
@@ -50,6 +54,12 @@ interface Event {
   maxTicketsPerUser?: number;
   serviceFeePercent?: number;
   status: string;
+
+  /**
+   * Real EventFunction PK returned by GET /api/events/:id as `functionId`.
+   * Null when the event has no default function exists yet (draft events).
+   */
+  functionId: number | null;
 
   sold?: number;
   available?: number;
@@ -88,11 +98,32 @@ export default function EventDetail() {
 
   const cart = useCartStore();
 
+  const [event, setEvent] = useState<Event | null>(null);
+
+  // ─── BLA-87 ShoppingSession ───────────────────────────────────────────────
+  const [sessionExpiredOpen, setSessionExpiredOpen] = useState(false);
+  const [committingReservation, setCommittingReservation] = useState(false);
+
+  const onSessionExpired = useCallback(() => {
+    setSessionExpiredOpen(true);
+  }, []);
+
+  const {
+    status: sessionStatus,
+    session,
+    secondsRemaining,
+    commitToReservation,
+  } = useShoppingSession({
+    eventId: event?.id ?? null,
+    // Real EventFunction PK from backend. The hook is a no-op until non-null.
+    functionId: event?.functionId ?? null,
+    authenticated: !authLoading && !!user,
+    onExpired: onSessionExpired,
+  });
+
   useEffect(() => {
     console.log("🛒 Carrito actual:", cart.items);
   }, [cart.items]);
-
-  const [event, setEvent] = useState<Event | null>(null);
 
   const [loadingEvent, setLoadingEvent] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +206,9 @@ export default function EventDetail() {
         setEvent({
           ...data,
           id: Number(data.id),
+          // functionId is returned by GET /api/events/:id as the default
+          // EventFunction PK. Null means no default function exists yet.
+          functionId: data.functionId != null ? Number(data.functionId) : null,
           ticketTypes: normalizedTickets,
         });
       } catch (err) {
@@ -749,8 +783,13 @@ export default function EventDetail() {
 
                 <button
                   id="btn-continuar-pago"
-                  disabled={totalSelected === 0}
-                  onClick={() => {
+                  disabled={
+                    totalSelected === 0 ||
+                    committingReservation ||
+                    (!!user && sessionStatus !== "active")
+                  }
+                  onClick={async () => {
+                    if (!event) return;
                     if (totalSelected > maxPerUser) {
                       alert(
                         `Solo podés comprar hasta ${maxPerUser} entradas por usuario`
@@ -758,13 +797,63 @@ export default function EventDetail() {
                       return;
                     }
                     if (!prepareCartForEvent()) return;
-                    router.push(`/cart?eventId=${event.id}`);
+
+                    if (!user) {
+                      router.push(
+                        `/login?callbackUrl=${encodeURIComponent(`/events/${event.id}`)}`
+                      );
+                      return;
+                    }
+
+                    if (!session) {
+                      // Session not ready yet — fall back to cart page which
+                      // will also attempt to commit via ShoppingSession.
+                      router.push(`/cart?eventId=${event.id}`);
+                      return;
+                    }
+
+                    try {
+                      setCommittingReservation(true);
+                      const token = await commitToReservation();
+                      localStorage.setItem("reservationToken", token);
+                      cart.clearCart();
+                      router.push(`/checkout?token=${token}`);
+                    } catch (err) {
+                      console.error("❌ Error al confirmar sesión de compra:", err);
+                      alert(
+                        err instanceof Error
+                          ? err.message
+                          : "No se pudo crear la reserva. Intentá nuevamente."
+                      );
+                    } finally {
+                      setCommittingReservation(false);
+                    }
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-bold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Continuar al pago
-                  {totalSelected > 0 && ` · $${finalTotal.toLocaleString("es-AR")}`}
+                  {committingReservation
+                    ? "Confirmando..."
+                    : `Continuar al pago${totalSelected > 0 ? ` · $${finalTotal.toLocaleString("es-AR")}` : ""}`}
                 </button>
+                {/* Session status indicator */}
+                {user && sessionStatus === "loading" && (
+                  <p className="mt-2 text-center text-[11px] text-gray-600 animate-pulse">
+                    Preparando sesión de compra...
+                  </p>
+                )}
+                {user && sessionStatus === "active" && secondsRemaining !== null && (
+                  <p className={`mt-2 text-center text-[11px] font-medium ${
+                    secondsRemaining < 120 ? "text-amber-400" : "text-gray-600"
+                  }`}>
+                    ⏱ Sesión activa —{" "}
+                    {Math.floor(secondsRemaining / 60)}:{String(secondsRemaining % 60).padStart(2, "0")}
+                  </p>
+                )}
+                {user && sessionStatus === "syncing" && (
+                  <p className="mt-2 text-center text-[11px] text-violet-400 animate-pulse">
+                    Guardando selección...
+                  </p>
+                )}
                 <p className="mt-3 text-center text-[11px] text-gray-600">
                   Pago protegido y compra segura
                 </p>
@@ -1020,6 +1109,20 @@ export default function EventDetail() {
           </div>
         </div>
       )}
+
+      {/* BLA-87: session expired overlay */}
+      <SessionExpiredModal
+        open={sessionExpiredOpen}
+        eventId={event?.id ?? null}
+        onGoToEvent={() => {
+          setSessionExpiredOpen(false);
+          window.location.reload();
+        }}
+        onGoHome={() => {
+          setSessionExpiredOpen(false);
+          router.push("/");
+        }}
+      />
 
     </div>
   );

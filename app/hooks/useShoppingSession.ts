@@ -1,33 +1,56 @@
 "use client";
 
 /**
- * useShoppingSession
+ * useShoppingSession — BLA-87 lifecycle hook
  *
- * Manages the full BLA-87 ShoppingSession lifecycle for a given event:
+ * Manages the full ShoppingSession lifecycle:
  *
- *  1. On mount (user authenticated): GET active session or POST create one.
- *  2. Seeds Zustand cart from backend items so the UI is immediately accurate
- *     after a page refresh (backend is the source of truth).
- *  3. Syncs Zustand → backend via PUT /items with optimistic locking every
- *     time the cart changes (debounced 600 ms).
- *  4. Sends heartbeat every `heartbeatSeconds` seconds (default 30).
- *  5. Tracks absolute expiry (`absoluteExpiresAt`) independently of heartbeats.
- *  6. On 410 from any call, transitions to `expired` state and calls onExpired.
- *  7. Exposes `commitToReservation()` that does the atomic ShoppingSession →
- *     Reservation transition with the current version tag.
+ *  BOOT
+ *  ─────
+ *  1. Checks localStorage for a "recoveryToken" UUID (written by payment flows
+ *     when a RecoverySession is issued). If valid and active, it is forwarded
+ *     to POST /shopping-sessions as `recoveryToken`.
+ *  2. POST /shopping-sessions returns 200 (existing session) or 201 (new).
+ *     The backend deduplicates: concurrent POSTs for the same user+functionId
+ *     return the same session.
+ *  3. Zustand cart is seeded from backend session.items so the UI is immediately
+ *     accurate after a page refresh. Backend is the source of truth.
  *
- * Zustand/localStorage remains the local UI cache; this hook ensures the
- * remote session is always the source of truth on load.
+ *  RUNTIME
+ *  ────────
+ *  4. Heartbeat interval: fires every `heartbeatSeconds` seconds (from backend
+ *     config, default 30). Resets idleExpiresAt. 410 → expired state.
+ *  5. Absolute-expiry countdown: tracks absoluteExpiresAt independently.
+ *     When it reaches 0 → expired state.
+ *  6. Cart sync: any change to Zustand cart.items is debounced 600 ms and
+ *     pushed via PUT /shopping-sessions/:id/items. Sends the current `version`
+ *     for optimistic locking. On 409, re-fetches the authoritative session.
+ *
+ *  COMMIT
+ *  ───────
+ *  7. commitToReservation() atomically converts the session to a Reservation
+ *     via POST /api/reservations { shoppingSessionId, version }. The backend
+ *     reads items directly from the session — no re-sending from the frontend.
+ *     On 410 (expired) or 409 (conflict) the error propagates to the caller.
+ *
+ *  CONSTRAINTS
+ *  ───────────
+ *  • functionId must be a real EventFunction PK read from GET /api/events/:id
+ *    response field `functionId`. The hook only starts when functionId != null.
+ *  • The fallback legacy POST /api/reservations { eventId, items } is NOT used.
+ *    BLA-87 requires ShoppingSession as the only path to Reservation.
+ *  • Zustand/localStorage remain as transient UI cache only.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCartStore } from "@/app/store/cartStore";
 import {
-  createShoppingSession,
-  getActiveShoppingSession,
+  createOrResumeSession,
+  getActiveSession,
   sendHeartbeat,
   updateSessionItems,
-  commitSessionToReservation,
+  commitToReservation as apiCommitToReservation,
+  getRecoverySession,
   ShoppingSessionExpiredError,
   ShoppingSessionConflictError,
   type ShoppingSession,
@@ -36,52 +59,51 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type SessionStatus =
-  | "idle"       // Not yet initialised (no user or event yet).
-  | "loading"    // Fetching / creating a session.
-  | "active"     // Session exists and is alive.
-  | "syncing"    // Writing items to the backend (non-blocking optimistic).
-  | "expired"    // 410 received or absolute TTL hit.
-  | "error";     // Unrecoverable fetch error.
+  | "idle"      // Not yet initialised (waiting for auth or functionId).
+  | "loading"   // Creating or recovering a session.
+  | "active"    // Session is alive and heartbeating.
+  | "syncing"   // Writing cart items to backend (non-blocking optimistic write).
+  | "expired"   // 410 received, TTL hit, or user confirmed via onExpired.
+  | "error";    // Unrecoverable fetch error (shown inline, does not block UX).
 
 export interface UseShoppingSessionOptions {
   /** Numeric event id from the page params. */
   eventId: number | null;
   /**
-   * FunctionId for the EventFunction.
-   * Until the frontend exposes function selection this mirrors eventId.
-   * Pass the real functionId once multi-function support is available.
+   * Real EventFunction PK from GET /api/events/:id → `functionId` field.
+   * The hook is a no-op until this is non-null.
    */
   functionId: number | null;
-  /** Called when the session expires (410 or TTL). */
+  /** Called once when the session transitions to `expired`. */
   onExpired?: () => void;
-  /**
-   * Set to true only while the user is authenticated.
-   * The hook does nothing until this is true to avoid anonymous API calls.
-   */
+  /** Set true only once auth loading is complete and a user is present. */
   authenticated: boolean;
 }
 
 export interface UseShoppingSessionReturn {
   status: SessionStatus;
+  /** The backend session object. Null when idle, loading, or expired. */
   session: ShoppingSession | null;
-  /** Seconds remaining until absolute expiry. Null while loading. */
+  /** Seconds remaining before absolute expiry. Null while loading. */
   secondsRemaining: number | null;
   /**
-   * Commits the current session to a Reservation.
-   * Returns the reservation token on success, throws on failure.
+   * Atomically converts the current session to a Reservation.
+   * Returns the reservation token (UUID string) on success.
+   * Throws ShoppingSessionExpiredError or ShoppingSessionConflictError on failure.
    */
   commitToReservation: () => Promise<string>;
-  /** Manual retry after an error or expiry (creates a fresh session). */
-  reset: () => void;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Fallback heartbeat interval if the backend doesn't supply heartbeatSeconds. */
-const DEFAULT_HEARTBEAT_SECONDS = 30;
+/** Fallback if backend doesn't specify heartbeatSeconds. */
+const FALLBACK_HEARTBEAT_SECONDS = 30;
 
-/** Debounce delay (ms) before pushing cart changes to the backend. */
+/** Debounce before pushing local cart changes to the backend. */
 const SYNC_DEBOUNCE_MS = 600;
+
+/** localStorage key where payment flows write RecoverySession tokens. */
+const RECOVERY_TOKEN_KEY = "recoveryToken";
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -96,33 +118,35 @@ export function useShoppingSession({
   const [session, setSession] = useState<ShoppingSession | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  // heartbeatSeconds is dynamic (from backend config); stored in a ref so the
+  // heartbeat interval can be recreated without stale closure issues.
+  const [heartbeatSeconds, setHeartbeatSeconds] = useState(FALLBACK_HEARTBEAT_SECONDS);
 
-  // Refs so interval callbacks always see up-to-date values without
-  // re-registering the intervals.
+  // Mutable refs so interval callbacks always read the latest values.
   const sessionRef = useRef<ShoppingSession | null>(null);
   const statusRef = useRef<SessionStatus>("idle");
   const onExpiredRef = useRef(onExpired);
+  // Monotonic counter: each debounced cart sync increments it. A sync that was
+  // scheduled before the latest increment is a no-op (stale).
+  const syncSeq = useRef(0);
 
-  // Keep refs in sync with state.
   useEffect(() => { sessionRef.current = session; }, [session]);
   useEffect(() => { statusRef.current = status; }, [status]);
   useEffect(() => { onExpiredRef.current = onExpired; }, [onExpired]);
 
-  // Sync counter — used to abort stale debounced pushes.
-  const syncVersion = useRef(0);
-
-  // ─── Handle expiry uniformly ─────────────────────────────────────────────
+  // ─── Unified expiry handler ─────────────────────────────────────────────
 
   const handleExpired = useCallback(() => {
     setStatus("expired");
     setSession(null);
     setSecondsRemaining(0);
+    sessionRef.current = null;
     onExpiredRef.current?.();
   }, []);
 
-  // ─── Initialise session (create or recover) ───────────────────────────────
+  // ─── Session initialisation ────────────────────────────────────────────
 
-  const initialiseSession = useCallback(async () => {
+  const initialise = useCallback(async () => {
     if (!eventId || !functionId) return;
     if (statusRef.current === "loading") return;
 
@@ -130,34 +154,50 @@ export function useShoppingSession({
     setSecondsRemaining(null);
 
     try {
-      // 1. Try to recover an existing active session.
-      let active = await getActiveShoppingSession(functionId);
-
-      if (!active) {
-        // 2. No active session — create a fresh one.
-        active = await createShoppingSession({ eventId, functionId });
-      }
-
-      // 3. Seed Zustand from the remote session so the cart reflects the
-      //    server state immediately (critical after refresh / tab open).
-      if (active.items.length > 0) {
-        // Reconcile: set each quantity from the backend, reconcile removes
-        // any Zustand items that don't exist in backend items.
-        const backendIds = active.items.map((i) => i.ticketTypeId);
-        cart.reconcileCart({ eventId, activeTicketTypeIds: backendIds });
-        for (const item of active.items) {
-          cart.setQuantity({ eventId, ticketTypeId: item.ticketTypeId, quantity: item.quantity });
+      // 1. Check for a RecoverySession token written by the payment flow.
+      //    GET /api/recovery-sessions/:token tells us if it is still active.
+      let recoveryToken: string | undefined;
+      const savedRecoveryToken = localStorage.getItem(RECOVERY_TOKEN_KEY);
+      if (savedRecoveryToken) {
+        const recovery = await getRecoverySession(savedRecoveryToken).catch(() => null);
+        if (
+          recovery &&
+          recovery.status === "active" &&
+          recovery.eventId === eventId &&
+          recovery.functionId === functionId
+        ) {
+          recoveryToken = savedRecoveryToken;
         }
-      } else {
-        // Backend has no items; don't clobber local Zustand selection.
-        // The next sync write will push Zustand → backend.
+        // Consume regardless (if invalid, stale, or wrong function — discard).
+        if (!recovery || recovery.status !== "active") {
+          localStorage.removeItem(RECOVERY_TOKEN_KEY);
+        }
       }
 
-      const now = Date.now();
-      const absMs = new Date(active.absoluteExpiresAt).getTime();
-      const remaining = Math.max(0, Math.floor((absMs - now) / 1000));
+      // 2. POST /shopping-sessions — backend returns existing session (200) or
+      //    creates a new one (201). The recoveryToken is consumed server-side.
+      const { session: newSession, heartbeatSeconds: hb } =
+        await createOrResumeSession({ eventId, functionId, recoveryToken });
 
-      setSession(active);
+      // After successful consumption, clean up localStorage.
+      if (recoveryToken) localStorage.removeItem(RECOVERY_TOKEN_KEY);
+
+      // 3. Seed Zustand from the backend session so a post-refresh load is instant.
+      // Always reconcile, including an empty backend session. Otherwise a new
+      // session created after expiry can inherit stale localStorage items that
+      // no longer exist server-side.
+      const backendIds = newSession.items.map((i) => i.ticketTypeId);
+      cart.reconcileCart({ eventId, activeTicketTypeIds: backendIds });
+      for (const item of newSession.items) {
+        cart.setQuantity({ eventId, ticketTypeId: item.ticketTypeId, quantity: item.quantity });
+      }
+
+      const absMs = new Date(newSession.absoluteExpiresAt).getTime();
+      const remaining = Math.max(0, Math.floor((absMs - Date.now()) / 1000));
+
+      setSession(newSession);
+      sessionRef.current = newSession;
+      setHeartbeatSeconds(hb);
       setSecondsRemaining(remaining);
       setStatus("active");
     } catch (err) {
@@ -170,102 +210,124 @@ export function useShoppingSession({
     }
   }, [eventId, functionId, cart, handleExpired]);
 
-  // ─── Boot on auth + event ready ───────────────────────────────────────────
+  // ─── Boot: trigger once auth + functionId are ready ───────────────────
 
   useEffect(() => {
     if (!authenticated || !eventId || !functionId) return;
-    initialiseSession();
+    initialise();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, eventId, functionId]);
 
-  // ─── Heartbeat interval ────────────────────────────────────────────────────
+  // ─── Heartbeat ────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (status !== "active" || !session) return;
 
-    const intervalMs = (session.heartbeatSeconds ?? DEFAULT_HEARTBEAT_SECONDS) * 1000;
-
+    const intervalMs = heartbeatSeconds * 1_000;
     const id = window.setInterval(async () => {
       const s = sessionRef.current;
       if (!s || statusRef.current !== "active") return;
 
       try {
-        await sendHeartbeat(s.id);
+        const updated = await sendHeartbeat(s.id);
+        // Update only the TTL fields; don't replace the full session to avoid
+        // triggering the cart-sync useEffect unnecessarily.
+        setSession((prev) => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            idleExpiresAt: updated.idleExpiresAt,
+            lastActivityAt: updated.lastActivityAt,
+          };
+          sessionRef.current = next;
+          return next;
+        });
       } catch (err) {
         if (err instanceof ShoppingSessionExpiredError) {
           handleExpired();
         }
-        // Network blip — silently ignore; the next tick will retry.
+        // Transient network errors are silently ignored; next tick will retry.
       }
     }, intervalMs);
 
     return () => window.clearInterval(id);
-  }, [status, session, handleExpired]);
+  }, [status, session, heartbeatSeconds, handleExpired]);
 
-  // ─── Absolute-expiry countdown ────────────────────────────────────────────
+  // ─── Absolute-expiry countdown ────────────────────────────────────────
 
   useEffect(() => {
     if (status !== "active" || !session) return;
 
     const absMs = new Date(session.absoluteExpiresAt).getTime();
-
     const id = window.setInterval(() => {
       const remaining = Math.max(0, Math.floor((absMs - Date.now()) / 1000));
       setSecondsRemaining(remaining);
-
       if (remaining === 0) {
         window.clearInterval(id);
         handleExpired();
       }
-    }, 1000);
+    }, 1_000);
 
     return () => window.clearInterval(id);
   }, [status, session, handleExpired]);
 
-  // ─── Sync cart → backend (debounced) ─────────────────────────────────────
+  // ─── Debounced cart → backend sync ────────────────────────────────────
 
   useEffect(() => {
-    if (status !== "active" || !session) return;
+    if (status !== "active" && status !== "syncing") return;
+    const s = sessionRef.current;
+    if (!s) return;
 
-    // Snapshot of what we intend to push.
-    const itemsToSync = cart.items
+    const thisSeq = ++syncSeq.current;
+    const itemsSnapshot = cart.items
       .filter((i) => i.quantity > 0)
       .map((i) => ({ ticketTypeId: i.ticketTypeId, quantity: i.quantity }));
 
-    const thisVersion = ++syncVersion.current;
-
     const timerId = window.setTimeout(async () => {
-      // Abort if a newer sync was scheduled before us.
-      if (syncVersion.current !== thisVersion) return;
-
-      const s = sessionRef.current;
-      if (!s || statusRef.current !== "active") return;
+      if (syncSeq.current !== thisSeq) return; // Superseded by a newer write.
+      const current = sessionRef.current;
+      if (!current || statusRef.current !== "active") return;
 
       try {
         setStatus("syncing");
-        const updated = await updateSessionItems(s.id, {
-          items: itemsToSync,
-          version: s.version,
+        const updated = await updateSessionItems(current.id, {
+          items: itemsSnapshot,
+          version: current.version,
         });
-
-        // Update the local session with the new version from backend.
+        sessionRef.current = updated;
         setSession(updated);
         setStatus("active");
       } catch (err) {
         if (err instanceof ShoppingSessionExpiredError) {
           handleExpired();
         } else if (err instanceof ShoppingSessionConflictError) {
-          // Version conflict: re-fetch the authoritative session state.
-          console.warn("[ShoppingSession] version conflict — re-syncing from backend");
-          const fresh = await getActiveShoppingSession(s.functionId).catch(() => null);
-          if (fresh) {
-            setSession(fresh);
-            setStatus("active");
-          } else {
-            handleExpired();
+          // Version conflict: fetch the authoritative version, then retry the
+          // user's pending selection once. Merely replacing local session
+          // metadata would leave Zustand and the backend out of sync.
+          console.warn("[ShoppingSession] version conflict — re-fetching and retrying");
+          try {
+            const fresh = await getActiveSession(current.functionId);
+            if (fresh) {
+              const retried = await updateSessionItems(fresh.session.id, {
+                items: itemsSnapshot,
+                version: fresh.session.version,
+              });
+              sessionRef.current = retried;
+              setSession(retried);
+              setStatus("active");
+            } else {
+              handleExpired();
+            }
+          } catch (retryError) {
+            if (retryError instanceof ShoppingSessionExpiredError) {
+              handleExpired();
+            } else {
+              console.error("[ShoppingSession] conflict recovery failed:", retryError);
+              setStatus("active");
+            }
           }
         } else {
-          // Non-fatal sync error — revert to active so the user isn't blocked.
+          // Non-fatal: keep the session alive; the user can still continue.
           console.error("[ShoppingSession] sync error:", err);
           setStatus("active");
         }
@@ -273,47 +335,73 @@ export function useShoppingSession({
     }, SYNC_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timerId);
-    // Only re-run when cart.items changes — not on session state changes.
+    // ONLY re-run when cart.items changes — not when session state changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.items]);
 
-  // ─── commitToReservation ──────────────────────────────────────────────────
+  // ─── commitToReservation ──────────────────────────────────────────────
 
   const commitToReservation = useCallback(async (): Promise<string> => {
-    const s = sessionRef.current;
-    if (!s) throw new Error("No hay sesión activa para confirmar.");
+    let current = sessionRef.current;
+    if (!current) throw new Error("No hay sesión de compra activa.");
 
-    const result = await commitSessionToReservation({
-      shoppingSessionId: s.id,
-      version: s.version,
-    });
+    // Cancel a pending debounced write and flush the latest cart snapshot now.
+    // This closes the window where Continue could run before the 600 ms sync.
+    ++syncSeq.current;
+    const cartState = useCartStore.getState();
+    const items = cartState.eventId === eventId
+      ? cartState.items
+          .filter((item) => item.quantity > 0)
+          .map((item) => ({ ticketTypeId: item.ticketTypeId, quantity: item.quantity }))
+      : [];
 
-    const token = result.reservation?.token;
-    if (!token) throw new Error("El backend no devolvió un token de reserva.");
+    try {
+      current = await updateSessionItems(current.id, {
+        items,
+        version: current.version,
+      });
+    } catch (err) {
+      if (err instanceof ShoppingSessionExpiredError) {
+        handleExpired();
+        throw err;
+      }
+      if (!(err instanceof ShoppingSessionConflictError)) throw err;
 
-    // Session promoted — clear local session state.
+      const fresh = await getActiveSession(current.functionId);
+      if (!fresh) {
+        handleExpired();
+        throw new ShoppingSessionExpiredError();
+      }
+      current = await updateSessionItems(fresh.session.id, {
+        items,
+        version: fresh.session.version,
+      });
+    }
+
+    sessionRef.current = current;
+    setSession(current);
+
+    let token: string;
+    try {
+      // The backend reads the already-persisted items atomically from the
+      // ShoppingSession; its optimistic-lock field is named `version`.
+      token = await apiCommitToReservation({
+        shoppingSessionId: current.id,
+        version: current.version,
+      });
+    } catch (err) {
+      if (err instanceof ShoppingSessionExpiredError) handleExpired();
+      throw err;
+    }
+
+    // Session promoted to Reservation — clear local state.
     setSession(null);
     setStatus("idle");
     setSecondsRemaining(null);
+    sessionRef.current = null;
 
     return token;
-  }, []);
+  }, [eventId, handleExpired]);
 
-  // ─── Manual reset ─────────────────────────────────────────────────────────
-
-  const reset = useCallback(() => {
-    setSession(null);
-    setStatus("idle");
-    setSecondsRemaining(null);
-    // Re-initialise on next tick to avoid re-running in the same render cycle.
-    setTimeout(() => initialiseSession(), 0);
-  }, [initialiseSession]);
-
-  return {
-    status,
-    session,
-    secondsRemaining,
-    commitToReservation,
-    reset,
-  };
+  return { status, session, secondsRemaining, commitToReservation };
 }

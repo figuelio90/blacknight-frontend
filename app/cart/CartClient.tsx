@@ -27,8 +27,11 @@ interface Event {
   venueName?: string;
   maxTicketsPerUser?: number;
   serviceFeePercent?: number;
+  /** Real EventFunction PK from GET /api/events/:id → functionId field. */
+  functionId: number | null;
   ticketTypes: TicketType[];
 }
+
 
 export default function CartPage() {
   const router = useRouter();
@@ -63,8 +66,9 @@ export default function CartPage() {
     commitToReservation,
   } = useShoppingSession({
     eventId: numericEventId,
-    // Until function selection is exposed in the UI, functionId mirrors eventId.
-    functionId: numericEventId,
+    // Pass the real EventFunction PK from GET /api/events/:id.
+    // The hook stays idle until event is loaded and functionId is non-null.
+    functionId: event?.functionId ?? null,
     authenticated: !authLoading && !!user,
     onExpired: onSessionExpired,
   });
@@ -116,6 +120,8 @@ export default function CartPage() {
           venueName: data.venueName,
           maxTicketsPerUser: data.maxTicketsPerUser ?? undefined,
           serviceFeePercent: data.serviceFeePercent ?? 0,
+          // Real EventFunction PK — never assumed, always read from backend.
+          functionId: data.functionId != null ? Number(data.functionId) : null,
           ticketTypes: normalizedTickets,
         });
       } catch (err) {
@@ -314,75 +320,33 @@ export default function CartPage() {
       return;
     }
 
-    // ShoppingSession path (BLA-87)
-    if (session) {
-      try {
-        setReservationError(null);
-        setCreatingReservation(true);
-
-        const token = await commitToReservation();
-
-        // Persist token for checkout recovery on F5 / tab close
-        localStorage.setItem("reservationToken", token);
-        cart.clearCart();
-        router.push(`/checkout?token=${token}`);
-        return;
-      } catch (err) {
-        console.error("❌ Error al confirmar sesión de compra:", err);
-        const msg =
-          err instanceof Error ? err.message : "No se pudo crear la reserva.";
-        setReservationError(msg);
-        alert(msg);
-        return;
-      } finally {
-        setCreatingReservation(false);
-      }
+    // ShoppingSession path (BLA-87) — the ONLY reservation path.
+    // The legacy direct POST /api/reservations { eventId, items } is NOT used.
+    if (!session) {
+      // Session still loading or not ready (e.g., user not yet authenticated,
+      // or functionId not yet resolved). Show a transient message.
+      setReservationError(
+        "La sesión de compra aún no está lista. Esperá un momento e intentá nuevamente."
+      );
+      return;
     }
 
-    // Fallback: legacy direct reservation (no active ShoppingSession)
     try {
       setReservationError(null);
       setCreatingReservation(true);
 
-      const payload = {
-        eventId: event.id,
-        items: itemsWithDetails.map((i) => ({
-          ticketTypeId: i.ticketTypeId,
-          quantity: i.quantity,
-        })),
-      };
+      const token = await commitToReservation();
 
-      const res = await fetch("/api/reservations", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const msg = data.error || "No se pudo crear la reserva.";
-        setReservationError(msg);
-        alert(msg);
-        return;
-      }
-
-      const token = data.reservation?.token;
-      if (!token) {
-        const msg = "Error en el servidor: no se recibió token de reserva.";
-        setReservationError(msg);
-        alert(msg);
-        return;
-      }
-
+      // Persist token for checkout recovery on F5 / tab close.
       localStorage.setItem("reservationToken", token);
       cart.clearCart();
       router.push(`/checkout?token=${token}`);
     } catch (err) {
-      console.error("❌ Error inesperado creando reserva:", err);
-      setReservationError("Error inesperado al crear la reserva.");
-      alert("Error inesperado al crear la reserva.");
+      console.error("❌ Error al confirmar sesión de compra:", err);
+      const msg =
+        err instanceof Error ? err.message : "No se pudo crear la reserva.";
+      setReservationError(msg);
+      alert(msg);
     } finally {
       setCreatingReservation(false);
     }
@@ -674,7 +638,8 @@ export default function CartPage() {
               disabled={
                 itemsWithDetails.length === 0 ||
                 creatingReservation ||
-                hasQuantityIssues
+                hasQuantityIssues ||
+                (!!user && sessionStatus !== "active")
               }
               className="mt-4 w-full bg-violet-700 hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl py-3 text-sm font-semibold"
             >
