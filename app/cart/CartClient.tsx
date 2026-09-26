@@ -45,6 +45,7 @@ export default function CartPage() {
 
   const [creatingReservation, setCreatingReservation] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
+
   // =========================
   // Cargar evento por eventId
   // =========================
@@ -180,19 +181,19 @@ export default function CartPage() {
     () => itemsWithDetails.reduce((acc, i) => acc + i.quantity * i.price, 0),
     [itemsWithDetails]
   );
-    // Comisión configurada por el organizador (o admin)
-    const serviceFeePercent = event?.serviceFeePercent ?? 0;
 
-    // Monto de la comisión
-    const serviceFeeAmount = useMemo(() => {
+  // Comisión configurada por el organizador (o admin)
+  const serviceFeePercent = event?.serviceFeePercent ?? 0;
+
+  // Monto de la comisión
+  const serviceFeeAmount = useMemo(() => {
     return Math.round(totalAmount * (serviceFeePercent / 100));
-    }, [totalAmount, serviceFeePercent]);
+  }, [totalAmount, serviceFeePercent]);
 
-    // Total final (entradas + comisión)
-    const finalTotal = useMemo(() => {
+  // Total final (entradas + comisión)
+  const finalTotal = useMemo(() => {
     return totalAmount + serviceFeeAmount;
-    }, [totalAmount, serviceFeeAmount]);
-
+  }, [totalAmount, serviceFeeAmount]);
 
   const globalMax = event?.maxTicketsPerUser ?? Infinity;
   const itemsOverStock = useMemo(
@@ -283,7 +284,11 @@ export default function CartPage() {
     }
 
     if (!user) {
-      router.push("/login");
+      // Preservar el destino del carrito para volver después del login
+      const callbackUrl = resolvedEventId
+        ? `/cart?eventId=${resolvedEventId}`
+        : "/cart";
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
 
@@ -329,7 +334,7 @@ export default function CartPage() {
       // Guardar token para reintentos / F5
       localStorage.setItem("reservationToken", token);
 
-      // Redirigir a checkout profesional
+      // Redirigir a checkout
       router.push(`/checkout?token=${token}`);
     } catch (err) {
       console.error("❌ Error inesperado creando reserva:", err);
@@ -583,8 +588,8 @@ export default function CartPage() {
             </div>
 
             <div className="flex justify-between text-sm text-gray-400">
-                <span>Cargos de servicio ({serviceFeePercent}%)</span>
-                <span>${serviceFeeAmount.toLocaleString("es-AR")}</span>
+              <span>Cargos de servicio ({serviceFeePercent}%)</span>
+              <span>${serviceFeeAmount.toLocaleString("es-AR")}</span>
             </div>
 
             <div className="border-t border-neutral-800 my-3" />

@@ -48,6 +48,7 @@ interface Event {
 
   capacity: number;
   maxTicketsPerUser?: number;
+  serviceFeePercent?: number;
   status: string;
 
   sold?: number;
@@ -257,6 +258,10 @@ export default function EventDetail() {
       return acc + (ticket ? ticket.price * item.quantity : 0);
     }, 0);
   }, [cartItemsForEvent, event?.ticketTypes]);
+
+  const serviceFeePercent = event?.serviceFeePercent ?? 0;
+  const serviceFeeAmount = Math.round(totalAmount * (serviceFeePercent / 100));
+  const finalTotal = totalAmount + serviceFeeAmount;
 
   const maxPerUser = event?.maxTicketsPerUser ?? Infinity;
 
@@ -725,10 +730,18 @@ export default function EventDetail() {
                         </div>
                       );
                     })}
-                    <div className="flex items-center justify-between border-t border-neutral-800 pt-4">
+                    <div className="flex items-center justify-between border-t border-neutral-800 pt-4 text-sm text-gray-400">
+                      <span>Subtotal</span>
+                      <span>${totalAmount.toLocaleString("es-AR")}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-gray-400">
+                      <span>Cargos de servicio ({serviceFeePercent}%)</span>
+                      <span>${serviceFeeAmount.toLocaleString("es-AR")}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-sm font-bold text-white">Total</span>
                       <span className="text-xl font-black text-violet-300">
-                        ${totalAmount.toLocaleString("es-AR")}
+                        ${finalTotal.toLocaleString("es-AR")}
                       </span>
                     </div>
                   </div>
@@ -750,7 +763,7 @@ export default function EventDetail() {
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 text-sm font-bold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Continuar al pago
-                  {totalSelected > 0 && ` · $${totalAmount.toLocaleString("es-AR")}`}
+                  {totalSelected > 0 && ` · $${finalTotal.toLocaleString("es-AR")}`}
                 </button>
                 <p className="mt-3 text-center text-[11px] text-gray-600">
                   Pago protegido y compra segura

@@ -79,7 +79,7 @@ export default function EventsList({ filter, query }: Props) {
       {filtered.map((ev) => {
         const minPrice =
           ev.ticketTypes?.length > 0
-            ? Math.min(...ev.ticketTypes.map((t: any) => t.price)) / 100
+            ? Math.min(...ev.ticketTypes.map((t: any) => t.price))
             : null;
 
         return (

@@ -267,6 +267,13 @@ export default function EditEventClient({ eventId }: { eventId: string }) {
         return;
       }
 
+      const updatedEvent = await res.json();
+      setEvent((current) =>
+        current
+          ? { ...current, ticketTypes: updatedEvent.ticketTypes ?? current.ticketTypes }
+          : current
+      );
+
       if (uploadedCover) {
         setEvent((prev) =>
           prev ? { ...prev, image: uploadedCover.publicUrl } : prev

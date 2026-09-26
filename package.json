@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test-events:dry-run": "node scripts/test-events/batch.mjs dry-run",
+    "test-events:load": "node scripts/test-events/batch.mjs load",
+    "test-events:cleanup": "node scripts/test-events/batch.mjs cleanup"
   },
   "dependencies": {
     "framer-motion": "^12.23.24",

@@ -33,7 +33,10 @@ export default function CheckoutPage() {
 
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [items, setItems] = useState<ReservationItem[]>([]);
+  const [backendSubtotal, setBackendSubtotal] = useState(0);
+  const [backendServiceFee, setBackendServiceFee] = useState(0);
   const [backendTotal, setBackendTotal] = useState(0);
+  const [serviceFeePercent, setServiceFeePercent] = useState(0);
 
   const [loadingReservation, setLoadingReservation] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -78,7 +81,10 @@ export default function CheckoutPage() {
 
         setReservation(data.reservation);
         setItems(data.items);
+        setBackendSubtotal(data.subtotal);
+        setBackendServiceFee(data.serviceFee);
         setBackendTotal(data.total);
+        setServiceFeePercent(data.serviceFeePercent);
 
         const expiresAt = new Date(data.reservation.expiresAt).getTime();
         const remaining = Math.floor((expiresAt - Date.now()) / 1000);
@@ -171,10 +177,6 @@ export default function CheckoutPage() {
     return <p className="text-center text-red-500 mt-10">Reserva no encontrada.</p>;
 
   const event = reservation.event;
-
-  const feePercent = event.serviceFeePercent ?? 0;
-  const serviceFee = Math.round(backendTotal * (feePercent / 100));
-  const finalTotal = backendTotal + serviceFee;
 
   // ================================
   // UI
@@ -287,19 +289,19 @@ export default function CheckoutPage() {
           <div className="space-y-2 text-gray-700">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <strong>${backendTotal.toLocaleString("es-AR")}</strong>
+              <strong>${backendSubtotal.toLocaleString("es-AR")}</strong>
             </div>
 
             <div className="flex justify-between">
-              <span>Cargos de servicio ({feePercent}%)</span>
-              <strong>${serviceFee.toLocaleString("es-AR")}</strong>
+              <span>Cargos de servicio ({serviceFeePercent}%)</span>
+              <strong>${backendServiceFee.toLocaleString("es-AR")}</strong>
             </div>
 
             <hr className="my-3" />
 
             <div className="flex justify-between text-xl font-bold text-violet-700">
               <span>Total</span>
-              <span>${finalTotal.toLocaleString("es-AR")}</span>
+              <span>${backendTotal.toLocaleString("es-AR")}</span>
             </div>
           </div>
 

@@ -61,7 +61,8 @@ export default function ProfilePage() {
 
     if (!user) {
       setTicketsLoading(false);
-      router.push("/login");
+      // Preservar /profile como destino para volver después del login
+      router.push("/login?callbackUrl=/profile");
       return;
     }
 
@@ -79,6 +80,11 @@ export default function ProfilePage() {
         });
 
         if (!response.ok) {
+          // Sesión expirada: redirigir al login preservando el destino
+          if (response.status === 401) {
+            router.push("/login?callbackUrl=/profile");
+            return;
+          }
           const errorData = await response.json().catch(() => ({}));
           throw new Error(
             errorData.error || "No se pudieron cargar tus entradas."
