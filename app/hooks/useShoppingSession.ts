@@ -47,12 +47,16 @@ import { useCartStore } from "@/app/store/cartStore";
 import {
   createOrResumeSession,
   getActiveSession,
+  getShoppingSession,
+  getFunctionAvailability,
   sendHeartbeat,
   updateSessionItems,
   commitToReservation as apiCommitToReservation,
   getRecoverySession,
   ShoppingSessionExpiredError,
   ShoppingSessionConflictError,
+  AvailabilityConflictError,
+  type FunctionAvailability,
   type ShoppingSession,
 } from "@/app/lib/shoppingSessionApi";
 
@@ -78,6 +82,8 @@ export interface UseShoppingSessionOptions {
   onExpired?: () => void;
   /** Set true only once auth loading is complete and a user is present. */
   authenticated: boolean;
+  /** Refresh the displayed ticket catalogue without changing event/function IDs. */
+  onAvailabilityRefresh: () => Promise<void>;
 }
 
 export interface UseShoppingSessionReturn {
@@ -89,9 +95,15 @@ export interface UseShoppingSessionReturn {
   /**
    * Atomically converts the current session to a Reservation.
    * Returns the reservation token (UUID string) on success.
-   * Throws ShoppingSessionExpiredError or ShoppingSessionConflictError on failure.
+   * Refreshes availability on AvailabilityConflictError before propagating it.
+   * Other conflicts and expiry keep their existing handling.
    */
   commitToReservation: () => Promise<string>;
+  availability: FunctionAvailability | null;
+  availabilityNotice: string | null;
+  refreshingAvailability: boolean;
+  availabilityRefreshFailed: boolean;
+  refreshAvailability: () => Promise<void>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -112,12 +124,18 @@ export function useShoppingSession({
   functionId,
   onExpired,
   authenticated,
+  onAvailabilityRefresh,
 }: UseShoppingSessionOptions): UseShoppingSessionReturn {
   const cart = useCartStore();
 
   const [session, setSession] = useState<ShoppingSession | null>(null);
   const [status, setStatus] = useState<SessionStatus>("idle");
   const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<FunctionAvailability | null>(null);
+  const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
+  const [refreshingAvailability, setRefreshingAvailability] = useState(false);
+  const [availabilityRefreshFailed, setAvailabilityRefreshFailed] = useState(false);
+  const refreshingAvailabilityRef = useRef(false);
   // heartbeatSeconds is dynamic (from backend config); stored in a ref so the
   // heartbeat interval can be recreated without stale closure issues.
   const [heartbeatSeconds, setHeartbeatSeconds] = useState(FALLBACK_HEARTBEAT_SECONDS);
@@ -152,6 +170,9 @@ export function useShoppingSession({
 
     setStatus("loading");
     setSecondsRemaining(null);
+    setAvailability(null);
+    setAvailabilityNotice(null);
+    setAvailabilityRefreshFailed(false);
 
     try {
       // 1. Check for a RecoverySession token written by the payment flow.
@@ -286,7 +307,7 @@ export function useShoppingSession({
     const timerId = window.setTimeout(async () => {
       if (syncSeq.current !== thisSeq) return; // Superseded by a newer write.
       const current = sessionRef.current;
-      if (!current || statusRef.current !== "active") return;
+      if (!current || statusRef.current !== "active" || refreshingAvailabilityRef.current) return;
 
       try {
         setStatus("syncing");
@@ -341,6 +362,50 @@ export function useShoppingSession({
 
   // ─── commitToReservation ──────────────────────────────────────────────
 
+  const refreshAvailability = useCallback(async () => {
+    const current = sessionRef.current;
+    if (!current || refreshingAvailabilityRef.current) return;
+    refreshingAvailabilityRef.current = true;
+    ++syncSeq.current;
+    setRefreshingAvailability(true);
+    setAvailabilityRefreshFailed(false);
+    setAvailabilityNotice(
+      "Algunas de las entradas seleccionadas ya no están disponibles. Estamos actualizando la disponibilidad."
+    );
+
+    // Independent reads: a failed catalogue request must not prevent refreshing
+    // the same session's version/TTL, and must never become a raw UI error.
+    const [sessionResult, availabilityResult, catalogueResult] = await Promise.allSettled([
+      getShoppingSession(current.id),
+      getFunctionAvailability(current.functionId),
+      onAvailabilityRefresh(),
+    ]);
+    const fresh = sessionResult.status === "fulfilled" ? sessionResult.value : null;
+    const sameSession = fresh?.id === current.id &&
+      fresh.eventId === current.eventId && fresh.functionId === current.functionId &&
+      fresh.status === "active";
+    if (sameSession && sessionRef.current?.id === current.id) {
+      sessionRef.current = fresh;
+      setSession(fresh);
+      // Keep the local selection intact; Continue flushes any user corrections
+      // with this refreshed version. Heartbeats and expiry remain in force.
+    }
+    const freshAvailability = availabilityResult.status === "fulfilled"
+      ? availabilityResult.value : null;
+    const sameFunction = freshAvailability?.functionId === current.functionId &&
+      freshAvailability.eventId === current.eventId;
+    if (sameFunction) setAvailability(freshAvailability);
+
+    const refreshed = sameSession && sameFunction && catalogueResult.status === "fulfilled";
+    setAvailabilityRefreshFailed(!refreshed);
+    setAvailabilityNotice(refreshed
+      ? "Algunas de las entradas seleccionadas ya no están disponibles. Actualizamos la disponibilidad para que puedas elegir nuevamente."
+      : "Algunas de las entradas seleccionadas ya no están disponibles. No pudimos actualizar toda la información. Volvé a actualizar la disponibilidad para continuar; conservamos tu selección."
+    );
+    refreshingAvailabilityRef.current = false;
+    setRefreshingAvailability(false);
+  }, [onAvailabilityRefresh]);
+
   const commitToReservation = useCallback(async (): Promise<string> => {
     let current = sessionRef.current;
     if (!current) throw new Error("No hay sesión de compra activa.");
@@ -390,6 +455,10 @@ export function useShoppingSession({
         version: current.version,
       });
     } catch (err) {
+      if (err instanceof AvailabilityConflictError) {
+        await refreshAvailability();
+        throw err;
+      }
       if (err instanceof ShoppingSessionExpiredError) handleExpired();
       throw err;
     }
@@ -401,7 +470,11 @@ export function useShoppingSession({
     sessionRef.current = null;
 
     return token;
-  }, [eventId, handleExpired]);
+  }, [eventId, handleExpired, refreshAvailability]);
 
-  return { status, session, secondsRemaining, commitToReservation };
+  return {
+    status, session, secondsRemaining, commitToReservation,
+    availability, availabilityNotice, refreshingAvailability,
+    availabilityRefreshFailed, refreshAvailability,
+  };
 }

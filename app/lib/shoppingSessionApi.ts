@@ -22,6 +22,7 @@
  *  POST   /api/reservations  (with { shoppingSessionId, version })
  *    → 201      { reservation: { token: string, ... } }
  *    → 409      { error: "SHOPPING_SESSION_VERSION_CONFLICT" | "SHOPPING_SESSION_NOT_ACTIVE" }
+ *    → 409      { code: "AVAILABILITY_CONFLICT", error: string }
  *    → 410      { error: "SHOPPING_SESSION_EXPIRED" }
  *
  * ─── Type notes ────────────────────────────────────────────────────────────────
@@ -132,7 +133,7 @@ export class ShoppingSessionExpiredError extends Error {
 }
 
 /**
- * Thrown when the backend returns HTTP 409.
+ * Thrown for HTTP 409 other than the stock-specific AVAILABILITY_CONFLICT.
  * Includes SHOPPING_SESSION_VERSION_CONFLICT and SHOPPING_SESSION_NOT_ACTIVE
  * from the reservations route (both map to 409 there).
  * The caller should re-fetch the active session and retry with the new version.
@@ -144,6 +145,82 @@ export class ShoppingSessionConflictError extends Error {
     this.name = "ShoppingSessionConflictError";
     this.code = code;
   }
+}
+
+/** A recoverable stock conflict; the ShoppingSession remains active. */
+export class AvailabilityConflictError extends Error {
+  readonly code = "AVAILABILITY_CONFLICT";
+  constructor() {
+    super("Algunas de las entradas seleccionadas ya no están disponibles.");
+    this.name = "AvailabilityConflictError";
+  }
+}
+
+export interface FunctionAvailability {
+  eventId: number;
+  functionId: number;
+  capacity: number;
+  sold: number;
+  reserved: number;
+  available: number;
+}
+
+export async function getFunctionAvailability(
+  functionId: number
+): Promise<FunctionAvailability> {
+  const res = await fetch(`/api/event-functions/${functionId}/availability`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("No se pudo actualizar la disponibilidad.");
+  return res.json() as Promise<FunctionAvailability>;
+}
+
+interface EventTicketType {
+  id: number;
+  name: string;
+  price: number;
+  stock: number;
+  active: boolean;
+  color?: string;
+  description?: string;
+  order: number;
+}
+
+/** The public catalogue exposes configured stock, not remaining stock by type. */
+export async function getFunctionTicketTypes(
+  eventId: number,
+  functionId: number
+): Promise<EventTicketType[]> {
+  const res = await fetch(`/api/events/${eventId}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("No se pudieron actualizar las entradas.");
+  const event = await res.json() as {
+    id: number;
+    functionId: number;
+    ticketTypes: EventTicketType[];
+  };
+  if (Number(event.id) !== eventId || Number(event.functionId) !== functionId) {
+    throw new Error("No se pudieron actualizar las entradas de esta función.");
+  }
+  return event.ticketTypes.map((ticket, index) => ({
+    ...ticket,
+    price: Number(ticket.price),
+    stock: Number(ticket.stock),
+    active: ticket.active ?? true,
+    order: ticket.order ?? index + 1,
+  }));
+}
+
+/** Refresh this exact session without creating or switching sessions. */
+export async function getShoppingSession(sessionId: number): Promise<ShoppingSession> {
+  const res = await fetch(`/api/shopping-sessions/${sessionId}`, {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return (await parseSessionEnvelope(res)).shoppingSession;
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
@@ -252,7 +329,8 @@ export async function updateSessionItems(
  * POST /api/reservations  { shoppingSessionId, version }
  * Atomically converts the ShoppingSession to a Reservation.
  * Items are taken from the backend session (not re-sent from the frontend).
- * Throws ShoppingSessionExpiredError on 410, ShoppingSessionConflictError on 409.
+ * Throws AvailabilityConflictError for the stock-specific 409, otherwise
+ * ShoppingSessionConflictError on 409 or ShoppingSessionExpiredError on 410.
  * Returns the reservation token on 201.
  */
 export async function commitToReservation(
@@ -267,7 +345,8 @@ export async function commitToReservation(
 
   if (res.status === 410) throw new ShoppingSessionExpiredError();
   if (res.status === 409) {
-    const body = await res.json().catch(() => ({})) as { error?: string };
+    const body = await res.json().catch(() => ({})) as { code?: string; error?: string };
+    if (body?.code === "AVAILABILITY_CONFLICT") throw new AvailabilityConflictError();
     throw new ShoppingSessionConflictError(body?.error);
   }
 

@@ -20,6 +20,8 @@ import {
 import { useCartStore } from "@/app/store/cartStore";
 import { useShoppingSession } from "@/app/hooks/useShoppingSession";
 import SessionExpiredModal from "@/app/components/SessionExpiredModal";
+import AvailabilityNotice from "@/app/components/AvailabilityNotice";
+import { AvailabilityConflictError, getFunctionTicketTypes } from "@/app/lib/shoppingSessionApi";
 
 
 interface TicketType {
@@ -108,17 +110,34 @@ export default function EventDetail() {
     setSessionExpiredOpen(true);
   }, []);
 
+  const refreshTicketTypes = useCallback(async () => {
+    if (!event?.id || !event.functionId) return;
+    const ticketTypes = await getFunctionTicketTypes(event.id, event.functionId);
+    setEvent((previous) => previous ? { ...previous, ticketTypes } : previous);
+    // Match the cart page: remove only types that disappeared or became inactive.
+    useCartStore.getState().reconcileCart({
+      eventId: event.id,
+      activeTicketTypeIds: ticketTypes.filter((ticket) => ticket.active).map((ticket) => ticket.id),
+    });
+  }, [event?.id, event?.functionId]);
+
   const {
     status: sessionStatus,
     session,
     secondsRemaining,
     commitToReservation,
+    availability,
+    availabilityNotice,
+    refreshingAvailability,
+    availabilityRefreshFailed,
+    refreshAvailability,
   } = useShoppingSession({
     eventId: event?.id ?? null,
     // Real EventFunction PK from backend. The hook is a no-op until non-null.
     functionId: event?.functionId ?? null,
     authenticated: !authLoading && !!user,
     onExpired: onSessionExpired,
+    onAvailabilityRefresh: refreshTicketTypes,
   });
 
   useEffect(() => {
@@ -266,7 +285,7 @@ export default function EventDetail() {
   };
 
   const setTicketQuantity = (ticketTypeId: number, quantity: number) => {
-    if (!event || !prepareCartForEvent()) return;
+    if (!event || committingReservation || refreshingAvailability || !prepareCartForEvent()) return;
 
     cart.setQuantity({
       eventId: event.id,
@@ -278,9 +297,9 @@ export default function EventDetail() {
   const orderedTickets = useMemo(() => {
     if (!event?.ticketTypes) return [];
     return [...event.ticketTypes]
-      .filter((t) => t.active && t.stock > 0)
+      .filter((t) => t.active && (t.stock > 0 || cartItemsForEvent.some((item) => item.ticketTypeId === t.id)))
       .sort((a, b) => a.order - b.order);
-  }, [event?.ticketTypes]);
+  }, [event?.ticketTypes, cartItemsForEvent]);
 
   const totalSelected = useMemo(() => {
     return cartItemsForEvent.reduce((acc, item) => acc + item.quantity, 0);
@@ -298,6 +317,13 @@ export default function EventDetail() {
   const finalTotal = totalAmount + serviceFeeAmount;
 
   const maxPerUser = event?.maxTicketsPerUser ?? Infinity;
+  const functionAvailable = availability ? Math.max(0, availability.available) : Infinity;
+  const hasQuantityIssues = totalSelected > maxPerUser || totalSelected > functionAvailable ||
+    cartItemsForEvent.some((item) => {
+      const ticket = event?.ticketTypes.find((type) => type.id === item.ticketTypeId);
+      return ticket && item.quantity > ticket.stock;
+    });
+  const selectionLocked = committingReservation || refreshingAvailability;
 
   const formattedFullDate = useMemo(() => {
     if (!event?.startAt) return "Sin fecha definida";
@@ -617,7 +643,7 @@ export default function EventDetail() {
                     const currentQty =
                       cartItemsForEvent.find((i) => i.ticketTypeId === t.id)
                         ?.quantity || 0;
-                    const reachedGlobalMax = totalSelected >= maxPerUser;
+                    const reachedGlobalMax = totalSelected >= Math.min(maxPerUser, functionAvailable);
                     const reachedTypeMax = currentQty >= t.stock;
                     const isSelected = currentQty > 0;
                     const isLowStock = t.stock <= 10;
@@ -667,6 +693,12 @@ export default function EventDetail() {
                           </p>
                         )}
 
+                        {currentQty > t.stock && (
+                          <p className="mt-2 text-xs text-red-400">
+                            La cantidad seleccionada supera el stock actual. Reducila a {t.stock} o menos para continuar.
+                          </p>
+                        )}
+
                         <div className="mt-3 flex items-center justify-end border-t border-neutral-800/80 pt-3">
                           {isSelected ? (
                             <div className="flex items-center gap-2">
@@ -676,7 +708,7 @@ export default function EventDetail() {
                                 onClick={() =>
                                   setTicketQuantity(t.id, Math.max(0, currentQty - 1))
                                 }
-                                disabled={currentQty <= 0}
+                                disabled={selectionLocked || currentQty <= 0}
                                 aria-label={`Quitar una entrada ${t.name}`}
                                 className="flex h-8 w-8 items-center justify-center rounded-full border border-neutral-700 bg-neutral-800 font-bold text-gray-200 transition-colors hover:border-violet-500 hover:text-white disabled:opacity-30"
                               >
@@ -692,7 +724,7 @@ export default function EventDetail() {
                                   if (reachedGlobalMax) return;
                                   setTicketQuantity(t.id, currentQty + 1);
                                 }}
-                                disabled={reachedGlobalMax || reachedTypeMax}
+                                disabled={selectionLocked || reachedGlobalMax || reachedTypeMax}
                                 aria-label={`Agregar una entrada ${t.name}`}
                                 className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 font-bold text-white transition-colors hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-30"
                               >
@@ -707,7 +739,7 @@ export default function EventDetail() {
                                 if (reachedGlobalMax) return;
                                 setTicketQuantity(t.id, 1);
                               }}
-                              disabled={reachedGlobalMax || reachedTypeMax}
+                              disabled={selectionLocked || reachedGlobalMax || reachedTypeMax}
                               className="rounded-lg border border-violet-500/50 px-3 py-1.5 text-xs font-bold text-violet-300 transition-colors hover:bg-violet-500/15 disabled:cursor-not-allowed disabled:opacity-30"
                             >
                               Agregar
@@ -781,15 +813,33 @@ export default function EventDetail() {
                   </div>
                 )}
 
+                <AvailabilityNotice
+                  message={availabilityNotice}
+                  refreshing={refreshingAvailability}
+                  onRetry={() => { void refreshAvailability(); }}
+                />
+                {availability && (
+                  <p className="my-2 text-xs text-gray-400">
+                    Disponibles en esta función: {functionAvailable}.
+                  </p>
+                )}
+                {hasQuantityIssues && (
+                  <p className="my-2 text-xs text-red-400">
+                    Reducí las cantidades seleccionadas: superan la disponibilidad o el máximo permitido.
+                  </p>
+                )}
+
                 <button
                   id="btn-continuar-pago"
                   disabled={
                     totalSelected === 0 ||
-                    committingReservation ||
+                    selectionLocked ||
+                    availabilityRefreshFailed ||
+                    hasQuantityIssues ||
                     (!!user && sessionStatus !== "active")
                   }
                   onClick={async () => {
-                    if (!event) return;
+                    if (!event || selectionLocked || availabilityRefreshFailed || hasQuantityIssues) return;
                     if (totalSelected > maxPerUser) {
                       alert(
                         `Solo podés comprar hasta ${maxPerUser} entradas por usuario`
@@ -819,6 +869,7 @@ export default function EventDetail() {
                       cart.clearCart();
                       router.push(`/checkout?token=${token}`);
                     } catch (err) {
+                      if (err instanceof AvailabilityConflictError) return;
                       console.error("❌ Error al confirmar sesión de compra:", err);
                       alert(
                         err instanceof Error

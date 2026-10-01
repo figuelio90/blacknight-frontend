@@ -9,6 +9,8 @@ import useAuth from "@/app/hooks/useAuth";
 import { FaTrash } from "react-icons/fa";
 import { useShoppingSession } from "@/app/hooks/useShoppingSession";
 import SessionExpiredModal from "@/app/components/SessionExpiredModal";
+import AvailabilityNotice from "@/app/components/AvailabilityNotice";
+import { AvailabilityConflictError, getFunctionTicketTypes } from "@/app/lib/shoppingSessionApi";
 
 interface TicketType {
   id: number;
@@ -59,11 +61,22 @@ export default function CartPage() {
     setSessionExpiredOpen(true);
   }, []);
 
+  const refreshTicketTypes = useCallback(async () => {
+    if (!numericEventId || !event?.functionId) return;
+    const ticketTypes = await getFunctionTicketTypes(numericEventId, event.functionId);
+    setEvent((previous) => previous ? { ...previous, ticketTypes } : previous);
+  }, [numericEventId, event?.functionId]);
+
   const {
     status: sessionStatus,
     session,
     secondsRemaining,
     commitToReservation,
+    availability,
+    availabilityNotice,
+    refreshingAvailability,
+    availabilityRefreshFailed,
+    refreshAvailability,
   } = useShoppingSession({
     eventId: numericEventId,
     // Pass the real EventFunction PK from GET /api/events/:id.
@@ -71,6 +84,7 @@ export default function CartPage() {
     functionId: event?.functionId ?? null,
     authenticated: !authLoading && !!user,
     onExpired: onSessionExpired,
+    onAvailabilityRefresh: refreshTicketTypes,
   });
 
   // =========================
@@ -230,7 +244,10 @@ export default function CartPage() {
     [itemsWithDetails]
   );
   const exceedsGlobalMax = totalQuantity > globalMax;
-  const hasQuantityIssues = itemsOverStock.length > 0 || exceedsGlobalMax;
+  const functionAvailable = availability ? Math.max(0, availability.available) : Infinity;
+  const exceedsAvailability = totalQuantity > functionAvailable;
+  const hasQuantityIssues = itemsOverStock.length > 0 || exceedsGlobalMax || exceedsAvailability;
+  const selectionLocked = creatingReservation || refreshingAvailability;
 
   // =========================
   // Manejar cambios de cantidad
@@ -240,7 +257,7 @@ export default function CartPage() {
     direction: "inc" | "dec"
   ) => {
     const currentItem = cart.items.find((i) => i.ticketTypeId === ticketTypeId);
-    if (!currentItem || !event) return;
+    if (!currentItem || !event || selectionLocked) return;
 
     const ticket = event.ticketTypes.find((t) => t.id === ticketTypeId);
     if (!ticket) return;
@@ -252,7 +269,7 @@ export default function CartPage() {
     const maxByGlobal =
       globalMax === Infinity ? maxByStock : Math.max(0, globalMax - otherQty);
 
-    const maxAllowed = Math.min(maxByStock, maxByGlobal);
+    const maxAllowed = Math.min(maxByStock, maxByGlobal, Math.max(0, functionAvailable - otherQty));
 
     if (direction === "dec") {
       const newQty = Math.max(0, currentQty - 1);
@@ -284,7 +301,7 @@ export default function CartPage() {
 
   const handleRemoveItem = (ticketTypeId: number) => {
     const item = cart.items.find((i) => i.ticketTypeId === ticketTypeId);
-    if (!item || !event) return;
+    if (!item || !event || selectionLocked) return;
 
     cart.setQuantity({
       eventId: event.id,
@@ -297,7 +314,7 @@ export default function CartPage() {
   // Continuar a checkout (BLA-87: ShoppingSession → Reservation)
   // =========================
   const handleContinue = async () => {
-    if (!event) return;
+    if (!event || selectionLocked || availabilityRefreshFailed) return;
 
     if (itemsWithDetails.length === 0) {
       alert("Tu carrito está vacío.");
@@ -342,6 +359,7 @@ export default function CartPage() {
       cart.clearCart();
       router.push(`/checkout?token=${token}`);
     } catch (err) {
+      if (err instanceof AvailabilityConflictError) return;
       console.error("❌ Error al confirmar sesión de compra:", err);
       const msg =
         err instanceof Error ? err.message : "No se pudo crear la reserva.";
@@ -436,6 +454,7 @@ export default function CartPage() {
             <button
               className="text-xs text-gray-400 hover:text-gray-200"
               onClick={() => cart.clearCart()}
+              disabled={selectionLocked}
             >
               Vaciar carrito
             </button>
@@ -472,7 +491,7 @@ export default function CartPage() {
                   ? maxByStock
                   : Math.max(0, globalMax - otherQty);
 
-              const maxAllowed = Math.min(maxByStock, maxByGlobal);
+              const maxAllowed = Math.min(maxByStock, maxByGlobal, Math.max(0, functionAvailable - otherQty));
               const canIncrease = item.quantity < maxAllowed;
               const exceedsStock = item.quantity > stock;
 
@@ -524,7 +543,7 @@ export default function CartPage() {
                           handleChangeQuantity(item.ticketTypeId, "dec")
                         }
                         className="w-6 h-6 flex items-center justify-center rounded-full bg-neutral-700 text-sm disabled:opacity-40"
-                        disabled={item.quantity <= 0}
+                        disabled={selectionLocked || item.quantity <= 0}
                       >
                         −
                       </button>
@@ -543,7 +562,7 @@ export default function CartPage() {
                           handleChangeQuantity(item.ticketTypeId, "inc")
                         }
                         className="w-6 h-6 flex items-center justify-center rounded-full bg-violet-700 text-sm disabled:opacity-40"
-                        disabled={!canIncrease}
+                        disabled={selectionLocked || !canIncrease}
                       >
                         +
                       </button>
@@ -557,6 +576,7 @@ export default function CartPage() {
                       </span>
                       <button
                         onClick={() => handleRemoveItem(item.ticketTypeId)}
+                        disabled={selectionLocked}
                         className="text-xs text-gray-500 hover:text-red-400"
                         title="Quitar del carrito"
                       >
@@ -614,6 +634,18 @@ export default function CartPage() {
               </p>
             )}
 
+            <AvailabilityNotice
+              message={availabilityNotice}
+              refreshing={refreshingAvailability}
+              onRetry={() => { void refreshAvailability(); }}
+            />
+            {availability && (
+              <p className={`text-xs ${exceedsAvailability ? "text-red-400" : "text-gray-400"}`}>
+                Disponibles en esta función: {functionAvailable}.
+                {exceedsAvailability && " Reducí la selección para continuar."}
+              </p>
+            )}
+
             <div className="flex justify-between text-sm text-gray-400">
               <span>Entradas ({totalQuantity})</span>
               <span>${totalAmount.toLocaleString("es-AR")}</span>
@@ -637,7 +669,8 @@ export default function CartPage() {
               onClick={handleContinue}
               disabled={
                 itemsWithDetails.length === 0 ||
-                creatingReservation ||
+                selectionLocked ||
+                availabilityRefreshFailed ||
                 hasQuantityIssues ||
                 (!!user && sessionStatus !== "active")
               }
